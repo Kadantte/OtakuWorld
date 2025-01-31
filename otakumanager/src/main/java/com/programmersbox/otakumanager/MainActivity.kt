@@ -1,5 +1,6 @@
 package com.programmersbox.otakumanager
 
+//import com.programmersbox.sharedutils.appUpdateCheck
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -50,18 +51,14 @@ import com.programmersbox.gsonutils.fromJson
 import com.programmersbox.gsonutils.toJson
 import com.programmersbox.models.ApiService
 import com.programmersbox.otakumanager.ui.theme.OtakuWorldTheme
-import com.programmersbox.sharedutils.AppUpdate
 import com.programmersbox.sharedutils.FirebaseAuthentication
-import com.programmersbox.sharedutils.appUpdateCheck
 import com.programmersbox.uiviews.GenericInfo
 import com.programmersbox.uiviews.utils.ComposableUtils
 import com.programmersbox.uiviews.utils.CoverCard
-import com.programmersbox.uiviews.utils.CustomChip2
+import com.programmersbox.uiviews.presentation.components.CustomChip2
 import io.reactivex.Flowable
-import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.rxkotlin.addTo
 import io.reactivex.schedulers.Schedulers
 import org.koin.android.ext.android.inject
 import com.programmersbox.anime_sources.Sources as ASources
@@ -106,14 +103,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        Single.create<AppUpdate.AppUpdates> {
+        /*Single.create<AppUpdate.AppUpdates> {
             AppUpdate.getUpdate()?.let { d -> it.onSuccess(d) } ?: it.onError(Exception("Something went wrong"))
         }
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .doOnError { }
             .subscribe(appUpdateCheck::onNext)
-            .addTo(disposable)
+            .addTo(disposable)*/
 
         val screenList = listOf(
             Screen.Favorites,
@@ -234,7 +231,7 @@ class MainActivity : ComponentActivity() {
         Scaffold(
             topBar = {
                 Column(
-                    modifier = Modifier.padding(5.dp)
+                    modifier = Modifier.padding(4.dp)
                 ) {
 
                     OutlinedTextField(
@@ -243,7 +240,7 @@ class MainActivity : ComponentActivity() {
                         label = { Text(resources.getQuantityString(R.plurals.numFavorites, showing.size, showing.size)) },
                         trailingIcon = { IconButton(onClick = { searchText = "" }) { Icon(Icons.Default.Cancel, null) } },
                         modifier = Modifier
-                            .padding(5.dp)
+                            .padding(4.dp)
                             .fillMaxWidth(),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -251,7 +248,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     Row(
-                        modifier = Modifier.padding(top = 5.dp)
+                        modifier = Modifier.padding(top = 4.dp)
                     ) {
 
                         LazyRow {
@@ -306,7 +303,7 @@ class MainActivity : ComponentActivity() {
         ) {
 
             when {
-                FirebaseAuthentication.currentUser == null -> NotLoggedInState(it)
+                //FirebaseAuthentication.currentUser == null -> NotLoggedInState(it)
                 showing.isEmpty() -> EmptyState(navController = navController, paddingValues = it)
                 else -> {
 
@@ -376,9 +373,9 @@ class MainActivity : ComponentActivity() {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(5.dp),
-                elevation = 5.dp,
-                shape = RoundedCornerShape(5.dp)
+                    .padding(4.dp),
+                elevation = 4.dp,
+                shape = RoundedCornerShape(4.dp)
             ) {
 
                 Column(modifier = Modifier) {
@@ -399,7 +396,7 @@ class MainActivity : ComponentActivity() {
                         onClick = onClick,
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
-                            .padding(vertical = 5.dp)
+                            .padding(vertical = 4.dp)
                     ) {
                         Text(
                             text = stringResource(buttonText),

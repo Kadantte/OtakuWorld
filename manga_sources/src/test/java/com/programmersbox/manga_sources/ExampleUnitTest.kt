@@ -4,11 +4,13 @@ import android.content.Context
 import com.programmersbox.gsonutils.fromJson
 import com.programmersbox.gsonutils.getApi
 import com.programmersbox.gsonutils.getJsonApi
-import com.programmersbox.manga_sources.manga.MangaFourLife
-import com.programmersbox.manga_sources.manga.MangaPark
+import com.programmersbox.manga_sources.manga.MangaRead
 import com.programmersbox.manga_sources.manga.NineAnime
 import com.programmersbox.manga_sources.utilities.toJsoup
 import com.programmersbox.models.ItemModel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.runBlocking
 import org.jsoup.Jsoup
 import org.junit.Test
 import org.mockito.Mockito
@@ -20,6 +22,15 @@ import java.io.File
  * See [testing documentation](http://d.android.com/tools/testing).
  */
 class ExampleUnitTest {
+
+    @Test
+    fun mangareadTest() = runBlocking {
+
+        val f = MangaRead.getRecentFlow(1).firstOrNull()
+
+        println(f)
+
+    }
 
     @Test
     fun asuraScansTest() {
@@ -48,43 +59,43 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun nineamimetest() {
+    fun nineamimetest() = runBlocking {
 
-        val f = NineAnime.getRecent().blockingGet()
+        val f = NineAnime.recent()
 
         println(f)
 
-        val i = f.first().toInfoModel().blockingGet()
+        val i = f.first().toInfoModel().first().getOrThrow()
 
         println(i)
 
-        val e = i.chapters.first().getChapterInfo().blockingGet()
+        val e = i.chapters.first().getChapterInfo().first()
 
         println(e)
 
     }
 
     @Test
-    fun mangaparkNewDesign() {
+    fun mangaparkNewDesign() = runBlocking {
 
         val c = Mockito.mock(Context::class.java)
 
-        val f = MangaPark.getRecent().blockingGet()
+        val f = MangaPark.recent()
 
         println(f)
 
-        val i = f.first().toInfoModel().blockingGet()
+        val i = f.first().toInfoModel().first().getOrThrow()
 
         println(i)
 
-        val e = i.chapters.first().getChapterInfo().blockingGet()
+        val e = i.chapters.first().getChapterInfo().first()
 
         println(e)
 
     }
 
     @Test
-    fun addition_isCorrect() {
+    fun addition_isCorrect() = runBlocking {
 
         val j = getJsonApi<List<Life>>("https://manga4life.com/_search.php") {
             addHeader("vm.SortBy", "lt")
@@ -100,7 +111,7 @@ class ExampleUnitTest {
                     source = MangaFourLife
                 )
             }
-            ?.random()?.toInfoModel()?.blockingGet()
+            ?.random()?.toInfoModel()?.first()?.getOrThrow()
 
         println(j)
 

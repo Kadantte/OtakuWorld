@@ -1,17 +1,14 @@
 android {
-    buildTypes {
-        beta {
-            initWith debug
-            matchingFallbacks = ['debug', 'release']
-            debuggable false
-        }
-    }
-
     easylauncher {
         defaultFlavorNaming true
+        productFlavors {
+            noFirebase {
+                filters chromeLike()
+            }
+        }
         buildTypes {
-            debug { filters blueRibbonFilter() }
-            beta { enable false }
+            debug { filters chromeLike(gravity: "Top") }
+            beta { filters chromeLike(gravity: "Top") }
         }
     }
 }

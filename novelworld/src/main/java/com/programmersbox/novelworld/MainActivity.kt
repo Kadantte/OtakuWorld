@@ -1,20 +1,14 @@
 package com.programmersbox.novelworld
 
-import com.programmersbox.models.sourcePublish
-import com.programmersbox.novel_sources.Sources
+import android.os.Build
+import android.view.WindowManager
 import com.programmersbox.uiviews.BaseMainActivity
-import com.programmersbox.uiviews.utils.currentService
 
 class MainActivity : BaseMainActivity() {
+
     override fun onCreate() {
-
-        if (currentService == null) {
-            val s = Sources.values().random()
-
-            sourcePublish.onNext(s)
-            currentService = s.serviceName
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
-
     }
-
 }

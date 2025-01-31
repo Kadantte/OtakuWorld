@@ -1,6 +1,5 @@
 package com.programmersbox.otakumanager
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -11,7 +10,6 @@ import android.webkit.URLUtil
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.appcompat.app.AlertDialog
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -25,10 +23,7 @@ import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.SettingsBrightness
-import androidx.compose.material.icons.filled.Update
 import androidx.compose.runtime.*
-import androidx.compose.runtime.rxjava2.subscribeAsState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -45,20 +40,15 @@ import com.alorma.settings.composables.SettingsGroup
 import com.alorma.settings.composables.SettingsMenuLink
 import com.bumptech.glide.Glide
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.firebase.auth.FirebaseUser
-import com.programmersbox.helpfulutils.requestPermissions
 import com.programmersbox.loggingutils.Loged
-import com.programmersbox.sharedutils.AppUpdate
+import com.programmersbox.sharedutils.CustomFirebaseUser
 import com.programmersbox.sharedutils.FirebaseAuthentication
 import com.programmersbox.sharedutils.MainLogo
-import com.programmersbox.sharedutils.appUpdateCheck
 import com.programmersbox.uiviews.BuildConfig
 import com.programmersbox.uiviews.GenericInfo
 import com.programmersbox.uiviews.utils.openInCustomChromeBrowser
 import com.skydoves.landscapist.glide.GlideImage
-import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.map
 import org.koin.core.component.KoinComponent
@@ -78,9 +68,9 @@ val THEME_SETTING = stringPreferencesKey("theme")
 @Composable
 fun OtakuSettings(activity: ComponentActivity, genericInfo: GenericInfo) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(5.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
-            .padding(5.dp)
+            .padding(4.dp)
             .verticalScroll(rememberScrollState())
     ) {
 
@@ -89,17 +79,17 @@ fun OtakuSettings(activity: ComponentActivity, genericInfo: GenericInfo) {
         val scope = rememberCoroutineScope()
         val disposable = remember { CompositeDisposable() }
 
-        var accountInfo by remember { mutableStateOf<FirebaseUser?>(null) }
+        var accountInfo by remember { mutableStateOf<CustomFirebaseUser?>(null) }
         val packageManager = LocalContext.current.packageManager
 
-        LaunchedEffect(Unit) { FirebaseAuthentication.auth.addAuthStateListener { accountInfo = it.currentUser } }
+        LaunchedEffect(Unit) { FirebaseAuthentication.addAuthStateListener { accountInfo = it } }
 
         DisposableEffect(accountInfo) {
             onDispose { disposable.dispose() }
         }
 
         SettingsGroup(
-            title = { Text(text = stringResource(id = R.string.account_category_title), modifier = Modifier.padding(start = 5.dp)) }
+            title = { Text(text = stringResource(id = R.string.account_category_title), modifier = Modifier.padding(start = 4.dp)) }
         ) {
 
             SettingsMenuLink(
@@ -111,47 +101,37 @@ fun OtakuSettings(activity: ComponentActivity, genericInfo: GenericInfo) {
                         requestBuilder = { Glide.with(LocalView.current).asDrawable().circleCrop() },
                     )
                 },
-                title = { Text(text = accountInfo?.displayName ?: "User", modifier = Modifier.padding(start = 5.dp)) },
+                title = { Text(text = accountInfo?.displayName ?: "User", modifier = Modifier.padding(start = 4.dp)) },
                 onClick = {
-                    FirebaseAuthentication.currentUser?.let {
-                        MaterialAlertDialogBuilder(activity)
-                            .setTitle(R.string.logOut)
-                            .setMessage(R.string.areYouSureLogOut)
-                            .setPositiveButton(R.string.yes) { d, _ ->
-                                FirebaseAuthentication.signOut()
-                                d.dismiss()
-                            }
-                            .setNegativeButton(R.string.no) { d, _ -> d.dismiss() }
-                            .show()
-                    } ?: FirebaseAuthentication.signIn(activity)
+                    FirebaseAuthentication.signInOrOut(activity, activity, R.string.logOut, R.string.areYouSureLogOut, R.string.yes, R.string.no)
                 },
             )
 
         }
 
         SettingsGroup(
-            title = { Text(text = stringResource(id = R.string.about), modifier = Modifier.padding(start = 5.dp)) }
+            title = { Text(text = stringResource(id = R.string.about), modifier = Modifier.padding(start = 4.dp)) }
         ) {
 
-            val appUpdate by appUpdateCheck
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribeAsState(initial = null)
+            /* val appUpdate by appUpdateCheck
+                 .subscribeOn(Schedulers.io())
+                 .observeOn(AndroidSchedulers.mainThread())
+                 .subscribeAsState(initial = null)
 
-            val currentAppInfo = rememberSaveable { packageManager?.getPackageInfo(activity.packageName, 0)?.versionName.orEmpty() }
+             val currentAppInfo = rememberSaveable { packageManager?.getPackageInfo(activity.packageName, 0)?.versionName.orEmpty() }
 
-            SettingsMenuLink(
-                title = { Text(text = stringResource(id = R.string.currentVersion, currentAppInfo), modifier = Modifier.padding(start = 5.dp)) },
-                subtitle = { Text(text = stringResource(id = R.string.press_to_check_for_updates), modifier = Modifier.padding(start = 5.dp)) },
-                onClick = {
-                    scope.launch(Dispatchers.IO) {
-                        AppUpdate.getUpdate()?.let(appUpdateCheck::onNext)
-                        launch(Dispatchers.Main) { Toast.makeText(activity, "Done Checking", Toast.LENGTH_SHORT).show() }
-                    }
-                }
-            )
+             SettingsMenuLink(
+                 title = { Text(text = stringResource(id = R.string.currentVersion, currentAppInfo), modifier = Modifier.padding(start = 4.dp)) },
+                 subtitle = { Text(text = stringResource(id = R.string.press_to_check_for_updates), modifier = Modifier.padding(start = 4.dp)) },
+                 onClick = {
+                     scope.launch(Dispatchers.IO) {
+                         AppUpdate.getUpdate()?.let(appUpdateCheck::onNext)
+                         launch(Dispatchers.Main) { Toast.makeText(activity, "Done Checking", Toast.LENGTH_SHORT).show() }
+                     }
+                 }
+             )*/
 
-            AnimatedVisibility(visible = AppUpdate.checkForUpdate(currentAppInfo, appUpdate?.update_real_version.orEmpty())) {
+            /*AnimatedVisibility(visible = AppUpdate.checkForUpdate(currentAppInfo, appUpdate?.update_real_version.orEmpty())) {
 
                 val update: () -> Unit = {
                     MaterialAlertDialogBuilder(activity)
@@ -192,7 +172,7 @@ fun OtakuSettings(activity: ComponentActivity, genericInfo: GenericInfo) {
 
                 SettingsMenuLink(
                     icon = { Icon(Icons.Default.Update, contentDescription = null) },
-                    title = { Text(text = stringResource(id = R.string.update_available), modifier = Modifier.padding(start = 5.dp)) },
+                    title = { Text(text = stringResource(id = R.string.update_available), modifier = Modifier.padding(start = 4.dp)) },
                     subtitle = {
                         Text(
                             text = stringResource(
@@ -200,7 +180,7 @@ fun OtakuSettings(activity: ComponentActivity, genericInfo: GenericInfo) {
                                 appUpdate?.update_real_version.orEmpty()
                             ),
                             modifier = Modifier.padding(
-                                start = 5.dp
+                                start = 4.dp
                             )
                         )
                     },
@@ -214,12 +194,12 @@ fun OtakuSettings(activity: ComponentActivity, genericInfo: GenericInfo) {
                     }
                 )
 
-            }
+            }*/
 
             SettingsMenuLink(
                 icon = { Image(painter = painterResource(id = R.drawable.github_icon), contentDescription = null) },
-                title = { Text(text = stringResource(id = R.string.view_on_github), modifier = Modifier.padding(start = 5.dp)) },
-                //subtitle = { Text(text = "", modifier = Modifier.padding(start = 5.dp)) },
+                title = { Text(text = stringResource(id = R.string.view_on_github), modifier = Modifier.padding(start = 4.dp)) },
+                //subtitle = { Text(text = "", modifier = Modifier.padding(start = 4.dp)) },
                 onClick = { activity.openInCustomChromeBrowser("https://github.com/jakepurple13/OtakuWorld/") },
                 action = {
                     Icon(
@@ -233,7 +213,7 @@ fun OtakuSettings(activity: ComponentActivity, genericInfo: GenericInfo) {
         }
 
         SettingsGroup(
-            title = { Text(text = "Otaku Apps", modifier = Modifier.padding(start = 5.dp)) }
+            title = { Text(text = "Otaku Apps", modifier = Modifier.padding(start = 4.dp)) }
         ) {
 
             SettingItem(
@@ -282,7 +262,7 @@ fun OtakuSettings(activity: ComponentActivity, genericInfo: GenericInfo) {
              */
 
         SettingsGroup(
-            title = { Text(text = stringResource(id = R.string.general_menu_title), modifier = Modifier.padding(start = 5.dp)) }
+            title = { Text(text = stringResource(id = R.string.general_menu_title), modifier = Modifier.padding(start = 4.dp)) }
         ) {
 
             val theme by activity.dataStore.data
@@ -293,8 +273,8 @@ fun OtakuSettings(activity: ComponentActivity, genericInfo: GenericInfo) {
 
             SettingsMenuLink(
                 icon = { Icon(Icons.Default.SettingsBrightness, contentDescription = null) },
-                title = { Text(text = stringResource(id = R.string.theme_choice_title), modifier = Modifier.padding(start = 5.dp)) },
-                subtitle = { Text(text = theme, modifier = Modifier.padding(start = 5.dp)) },
+                title = { Text(text = stringResource(id = R.string.theme_choice_title), modifier = Modifier.padding(start = 4.dp)) },
+                subtitle = { Text(text = theme, modifier = Modifier.padding(start = 4.dp)) },
                 onClick = {
                     /*MaterialAlertDialogBuilder(activity)
                         .setTitle(R.string.choose_a_theme)
@@ -336,11 +316,11 @@ fun SettingItem(text: String, icon: Int, packageName: String, packageManager: Pa
 
     SettingsMenuLink(
         icon = { Image(painter = painterResource(id = icon), contentDescription = text) },
-        title = { Text(text = text, modifier = Modifier.padding(start = 5.dp)) },
+        title = { Text(text = text, modifier = Modifier.padding(start = 4.dp)) },
         subtitle = {
             Text(
                 text = if (world != null) "Installed - Version: $version" else "Not Installed",
-                modifier = Modifier.padding(start = 5.dp)
+                modifier = Modifier.padding(start = 4.dp)
             )
         },
         onClick = onClick,

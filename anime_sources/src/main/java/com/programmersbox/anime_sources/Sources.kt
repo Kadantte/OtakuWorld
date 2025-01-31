@@ -1,19 +1,31 @@
 package com.programmersbox.anime_sources
 
-import com.programmersbox.anime_sources.anime.*
+import com.programmersbox.anime_sources.anime.AllAnime
+import com.programmersbox.anime_sources.anime.AnimeFlick
+import com.programmersbox.anime_sources.anime.AnimeKisaDubbed
+import com.programmersbox.anime_sources.anime.AnimeKisaMovies
+import com.programmersbox.anime_sources.anime.AnimeKisaSubbed
+import com.programmersbox.anime_sources.anime.Dopebox
+import com.programmersbox.anime_sources.anime.Hdm
+import com.programmersbox.anime_sources.anime.PutlockerAnime
+import com.programmersbox.anime_sources.anime.PutlockerCartoons
+import com.programmersbox.anime_sources.anime.PutlockerMovies
+import com.programmersbox.anime_sources.anime.PutlockerTV
+import com.programmersbox.anime_sources.anime.SflixS
+import com.programmersbox.anime_sources.anime.VidEmbed
+import com.programmersbox.anime_sources.anime.Vidstreaming
+import com.programmersbox.anime_sources.anime.WcoStream
+import com.programmersbox.anime_sources.anime.WcoStreamCC
 import com.programmersbox.models.ApiService
-import com.programmersbox.models.InfoModel
 import com.programmersbox.models.ItemModel
-import io.reactivex.Single
-import io.reactivex.schedulers.Schedulers
 import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
 
-enum class Sources(private val api: ApiService, val notWorking: Boolean = false) : ApiService by api {
+enum class Sources(private val api: ApiService, override val notWorking: Boolean = false) : ApiService by api {
     //GOGOANIME(GogoAnimeApi),
 
-    GOGOANIME_VC(GogoAnimeVC),
-    KAWAIIFU(Kawaiifu),
+    ALLANIME(AllAnime),
+
+    //GOGOANIME_VC(GogoAnimeVC),
     HDM(Hdm, true),
     //ANIMESIMPLE_SUBBED(AnimeSimpleSubbed), ANIMESIMPLE_DUBBED(AnimeSimpleDubbed),
 
@@ -21,7 +33,6 @@ enum class Sources(private val api: ApiService, val notWorking: Boolean = false)
     DOPEBOX(Dopebox),
     SFLIX(SflixS),
 
-    CRUNCHYROLL(CrunchyRoll),
     ANIMEFLICK(AnimeFlick),
 
     PUTLOCKERTV(PutlockerTV, true),
@@ -29,7 +40,7 @@ enum class Sources(private val api: ApiService, val notWorking: Boolean = false)
     PUTLOCKERCARTOONS(PutlockerCartoons, true),
     PUTLOCKERMOVIES(PutlockerMovies, true),
 
-    ANIMEKISA_SUBBED(AnimeKisaSubbed), ANIMEKISA_DUBBED(AnimeKisaDubbed), ANIMEKISA_MOVIES(AnimeKisaMovies),
+    ANIMEKISA_SUBBED(AnimeKisaSubbed, true), ANIMEKISA_DUBBED(AnimeKisaDubbed, true), ANIMEKISA_MOVIES(AnimeKisaMovies, true),
 
     WCOSTREAM(WcoStream),//WCO_DUBBED(WcoDubbed), WCO_SUBBED(WcoSubbed), WCO_CARTOON(WcoCartoon), WCO_MOVIES(WcoMovies), WCO_OVA(WcoOva),
     WCOSTREAMCC(WcoStreamCC)
@@ -41,6 +52,7 @@ enum class Sources(private val api: ApiService, val notWorking: Boolean = false)
     companion object {
         val searchSources
             get() = listOf(
+                ALLANIME,
                 VIDSTREAMING,
                 VIDEMBED,
                 //PUTLOCKERTV,
@@ -48,13 +60,11 @@ enum class Sources(private val api: ApiService, val notWorking: Boolean = false)
                 DOPEBOX,
                 SFLIX,
                 WCOSTREAM,
-                GOGOANIME_VC,
-                KAWAIIFU,
+                //GOGOANIME_VC,
                 ANIMEFLICK,
                 ANIMEKISA_SUBBED,
                 //HDM,
                 WCOSTREAMCC,
-                CRUNCHYROLL
             )
     }
 }
@@ -68,36 +78,12 @@ abstract class ShowApi(
     internal val recentPath: String
 ) : ApiService {
 
-    private fun recent(page: Int = 1) = "$baseUrl/$recentPath${recentPage(page)}".toJsoup()
-    private fun all(page: Int = 1) = "$baseUrl/$allPath${allPage(page)}".toJsoup()
+    internal fun recentPath(page: Int = 1) = "$baseUrl/$recentPath${recentPage(page)}".toJsoup()
+    internal fun all(page: Int = 1) = "$baseUrl/$allPath${allPage(page)}".toJsoup()
 
     internal open fun recentPage(page: Int): String = ""
     internal open fun allPage(page: Int): String = ""
 
-    internal abstract fun getRecent(doc: Document): Single<List<ItemModel>>
-    internal abstract fun getList(doc: Document): Single<List<ItemModel>>
-
-    override fun searchList(searchText: CharSequence, page: Int, list: List<ItemModel>): Single<List<ItemModel>> =
-        Single.create { it.onSuccess(if (searchText.isEmpty()) list else list.filter { it.title.contains(searchText, true) }) }
-
     protected fun searchListNonSingle(searchText: CharSequence, page: Int, list: List<ItemModel>): List<ItemModel> =
         if (searchText.isEmpty()) list else list.filter { it.title.contains(searchText, true) }
-
-    override fun getRecent(page: Int) = Single.create<Document> { it.onSuccess(recent(page)) }
-        .subscribeOn(Schedulers.io())
-        .observeOn(Schedulers.io())
-        .flatMap { getRecent(it) }
-
-    override fun getList(page: Int) = Single.create<Document> { it.onSuccess(all(page)) }
-        .subscribeOn(Schedulers.io())
-        .observeOn(Schedulers.io())
-        .flatMap { getList(it) }
-        .map { it.sortedBy(ItemModel::title) }
-
-    override fun getItemInfo(model: ItemModel): Single<InfoModel> = Single.create<Document> { it.onSuccess(model.url.toJsoup()) }
-        .subscribeOn(Schedulers.io())
-        .observeOn(Schedulers.io())
-        .flatMap { getItemInfo(model, it) }
-
-    internal abstract fun getItemInfo(source: ItemModel, doc: Document): Single<InfoModel>
 }

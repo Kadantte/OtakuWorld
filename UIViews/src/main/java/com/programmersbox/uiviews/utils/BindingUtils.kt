@@ -1,17 +1,9 @@
 package com.programmersbox.uiviews.utils
 
-import android.animation.ValueAnimator
-import android.graphics.*
+import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
-import androidx.annotation.ColorInt
-import androidx.annotation.NonNull
-import androidx.core.graphics.drawable.toBitmap
-import androidx.palette.graphics.Palette
 import androidx.recyclerview.widget.RecyclerView
-import com.airbnb.lottie.LottieAnimationView
-import com.airbnb.lottie.LottieProperty
-import com.airbnb.lottie.model.KeyPath
 import com.bumptech.glide.ListPreloader
 import com.bumptech.glide.RequestBuilder
 import com.bumptech.glide.request.target.CustomTarget
@@ -38,12 +30,12 @@ class CustomTargetBuilder<T> internal constructor() {
 
     fun build() = object : CustomTarget<T>() {
         override fun onLoadCleared(placeholder: Drawable?) = loadCleared(placeholder)
-        override fun onResourceReady(resource: T, transition: Transition<in T>?) = resourceReady(resource, transition)
+        override fun onResourceReady(resource: T & Any, transition: Transition<in T>?) = resourceReady(resource, transition)
     }
 
 }
 
-abstract class DragSwipeGlideAdapter<T, VH : RecyclerView.ViewHolder, Model>(
+abstract class DragSwipeGlideAdapter<T, VH : RecyclerView.ViewHolder, Model : Any>(
     dataList: MutableList<T> = mutableListOf()
 ) : DragSwipeAdapter<T, VH>(dataList), ListPreloader.PreloadModelProvider<Model> {
 
@@ -51,14 +43,12 @@ abstract class DragSwipeGlideAdapter<T, VH : RecyclerView.ViewHolder, Model>(
     protected abstract val thumbRequest: RequestBuilder<Drawable>
     protected abstract val itemToModel: (T) -> Model
 
-    @NonNull
     override fun getPreloadItems(position: Int): List<Model> = dataList.subList(position, position + 1).map(itemToModel).toList()
 
-    @NonNull
     override fun getPreloadRequestBuilder(item: Model): RequestBuilder<Drawable?>? = fullRequest.thumbnail(thumbRequest.load(item)).load(item)
 }
 
-fun Drawable.getPalette() = Palette.from(toBitmap()).generate()
+/*fun Drawable.getPalette() = Palette.from(toBitmap()).generate()
 fun Bitmap.getPalette() = Palette.from(this).generate()
 
 fun Int.getPaletteFromColor(): Palette {
@@ -67,22 +57,7 @@ fun Int.getPaletteFromColor(): Palette {
     return b.getPalette()
 }
 
-fun String.getPaletteFromHexColor(): Palette = Color.parseColor(this@getPaletteFromHexColor).getPaletteFromColor()
+fun String.getPaletteFromHexColor(): Palette = Color.parseColor(this@getPaletteFromHexColor).getPaletteFromColor()*/
 
 fun Int.toColorDrawable() = ColorDrawable(this)
 fun String.toColorDrawable() = ColorDrawable(Color.parseColor(this))
-
-var LottieAnimationView.checked: Boolean
-    get() = progress == 1f
-    set(value) = check(value)
-
-fun LottieAnimationView.check(checked: Boolean) {
-    val endProgress = if (checked) 1f else 0f
-    val animator = ValueAnimator.ofFloat(progress, endProgress).apply {
-        addUpdateListener { animation: ValueAnimator -> progress = animation.animatedValue as Float }
-    }
-    animator.start()
-}
-
-fun LottieAnimationView.changeTint(@ColorInt newColor: Int) =
-    addValueCallback(KeyPath("**"), LottieProperty.COLOR_FILTER) { PorterDuffColorFilter(newColor, PorterDuff.Mode.SRC_ATOP) }

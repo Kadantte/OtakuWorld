@@ -14,11 +14,9 @@ import com.programmersbox.models.ChapterModel
 import com.programmersbox.models.InfoModel
 import com.programmersbox.models.ItemModel
 import com.programmersbox.models.Storage
-import io.reactivex.Single
 import okhttp3.OkHttpClient
 import okio.ByteString.Companion.decodeBase64
 import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
 
 /*object WcoDubbed : WcoStream("dubbed-anime-list") {
     override val serviceName: String get() = "WCO_DUBBED"
@@ -54,29 +52,23 @@ object WcoStream : ShowApi(
 
     override val canScroll: Boolean get() = false
 
-    override fun searchList(searchText: CharSequence, page: Int, list: List<ItemModel>): Single<List<ItemModel>> {
-        return if (searchText.isEmpty()) super.searchList(searchText, page, list)
-        else Single.create<List<ItemModel>> {
-            Jsoup.connect("$baseUrl/search")
-                .data("catara", searchText.toString())
-                .data("konuara", "series")
-                .post()
-                .select("div.cerceve")
-                .fastMap {
-                    ItemModel(
-                        title = it.select("a").attr("title"),
-                        description = "",
-                        imageUrl = it.select("img").attr("abs:src"),
-                        url = it.select("a").attr("abs:href"),
-                        source = this
-                    )
-                }
-                .let(it::onSuccess)
-        }
-            .onErrorResumeNext(super.searchList(searchText, page, list))
+    override suspend fun search(searchText: CharSequence, page: Int, list: List<ItemModel>): List<ItemModel> {
+        return Jsoup.connect("$baseUrl/search")
+            .data("catara", searchText.toString())
+            .data("konuara", "series")
+            .post()
+            .select("div.cerceve")
+            .fastMap {
+                ItemModel(
+                    title = it.select("a").attr("title"),
+                    description = "",
+                    imageUrl = it.select("img").attr("abs:src"),
+                    url = it.select("a").attr("abs:href"),
+                    source = this
+                )
+            }
     }
 
-    override fun getRecent(doc: Document): Single<List<ItemModel>> = getList(doc)
     /*Single.create { emitter ->
     //https://www.wcostream.com/anime/mushi-shi-english-dubbed-guide
     //https://www.wcostream.com/wonder-egg-priority-episode-7-english-dubbed
@@ -102,8 +94,11 @@ object WcoStream : ShowApi(
         .let(emitter::onSuccess)
 }*/
 
-    override fun getList(doc: Document): Single<List<ItemModel>> = Single.create { emitter ->
-        doc
+
+    override suspend fun recent(page: Int): List<ItemModel> = allList(page)
+
+    override suspend fun allList(page: Int): List<ItemModel> {
+        return recentPath(page)
             .select("div.ddmcc")
             .select("li")
             .fastMap {
@@ -115,14 +110,14 @@ object WcoStream : ShowApi(
                     source = this
                 )
             }
-            .let(emitter::onSuccess)
     }
 
-    override fun getItemInfo(source: ItemModel, doc: Document): Single<InfoModel> = Single.create { emitter ->
-        InfoModel(
+    override suspend fun itemInfo(model: ItemModel): InfoModel {
+        val doc = model.url.toJsoup()
+        return InfoModel(
             source = this,
-            url = source.url,
-            title = source.title,
+            url = model.url,
+            title = model.title,
             description = doc.select("div.iltext").text(),
             imageUrl = doc.select("div#cat-img-desc").select("img").attr("abs:src"),
             genres = doc.select("div#cat-genre").select("div.wcobtn").eachText(),
@@ -132,34 +127,27 @@ object WcoStream : ShowApi(
                         name = it.select("a").text(),
                         url = it.select("a").attr("abs:href"),
                         uploaded = "",
-                        sourceUrl = source.url,
+                        sourceUrl = model.url,
                         source = this
                     )
                 },
             alternativeNames = emptyList()
         )
-            .let(emitter::onSuccess)
     }
 
-    override fun getSourceByUrl(url: String): Single<ItemModel> = Single.create {
-        try {
-            val doc = url.toJsoup()
-            ItemModel(
-                title = doc.select("div#content").select("h2[title]").text(),
-                description = doc.select("div.iltext").text(),
-                imageUrl = doc.select("div#cat-img-desc").select("img").attr("abs:src"),
-                url = url,
-                source = this
-            )
-                .let(it::onSuccess)
-        } catch (e: Exception) {
-            it.onError(e)
-        }
+    override suspend fun sourceByUrl(url: String): ItemModel {
+        val doc = url.toJsoup()
+        return ItemModel(
+            title = doc.select("div#content").select("h2[title]").text(),
+            description = doc.select("div.iltext").text(),
+            imageUrl = doc.select("div#cat-img-desc").select("img").attr("abs:src"),
+            url = url,
+            source = this
+        )
     }
 
-    override fun getChapterInfo(chapterModel: ChapterModel): Single<List<Storage>> = Single.create { emitter ->
-
-        val f = Jsoup.connect(chapterModel.url)
+    override suspend fun chapterInfo(chapterModel: ChapterModel): List<Storage> {
+        return Jsoup.connect(chapterModel.url)
             .header("X-Requested-With", "XMLHttpRequest")
             .userAgent("Mozilla/5.0 (Windows NT 10.0; Win 64; x64; rv:69.0) Gecko/20100101 Firefox/69.0")
             .followRedirects(true)
@@ -253,29 +241,8 @@ object WcoStream : ShowApi(
                     headers["X-Requested-With"] = "XMLHttpRequest"
                     headers["Referer"] = "$baseUrl$hiddenUrl".replace("https://wcostream.com", "https://www.wcostream.com")
                     headers["Mimetype"] = "video/mp4"
-                }
-                /*} else {
-                    Storage(
-                        link = "",
-                        source = chapterModel.url,
-                        quality = "Good",
-                        sub = "Yes"
-                    )
-                }*/
+                }.let { listOf(it) }
             }
-        //.also { println("-".repeat(50)) }
-        //.also { println(it) }
-
-        /*
-        Storage(
-                link = link,
-                source = chapterModel.url,
-                quality = "Good",
-                sub = "Yes"
-            )
-         */
-
-        emitter.onSuccess(listOf(f))
     }
 
     @WorkerThread
@@ -304,9 +271,8 @@ object WcoStreamCC : ShowApi(
 
     data class CcResponse(val html: String)
 
-    override fun getRecent(page: Int): Single<List<ItemModel>> = Single.create {
-        //JSONObject(getApi("$baseUrl/$recentPath").orEmpty()).getString("html")
-        getJsonApi<CcResponse>("$baseUrl/$allPath")?.html
+    override suspend fun recent(page: Int): List<ItemModel> {
+        return getJsonApi<CcResponse>("$baseUrl/$allPath")?.html
             ?.asJsoup()
             ?.select("div.flw-item")
             ?.fastMap {
@@ -324,13 +290,11 @@ object WcoStreamCC : ShowApi(
                     url = href,
                     source = Sources.WCOSTREAMCC
                 )
-            }
-            ?.let(it::onSuccess) ?: throw Exception("Unable to get response")
-        //it.onSuccess(emptyList())
+            }.orEmpty()
     }
 
-    override fun getList(page: Int): Single<List<ItemModel>> = Single.create {
-        getJsonApi<CcResponse>("$baseUrl/$allPath")?.html?.asJsoup()
+    override suspend fun allList(page: Int): List<ItemModel> {
+        return getJsonApi<CcResponse>("$baseUrl/$allPath")?.html?.asJsoup()
             ?.select("div.flw-item")
             ?.fastMap {
                 val filmDetail = it.select("> div.film-detail")
@@ -347,19 +311,15 @@ object WcoStreamCC : ShowApi(
                     url = href,
                     source = Sources.WCOSTREAMCC
                 )
-            }
-            ?.let(it::onSuccess) ?: throw Exception("Unable to get response")
-        //it.onSuccess(emptyList())
+            }.orEmpty()
     }
 
-    override fun getRecent(doc: Document): Single<List<ItemModel>> = Single.never()
-    override fun getList(doc: Document): Single<List<ItemModel>> = Single.never()
-
-    override fun getItemInfo(source: ItemModel, doc: Document): Single<InfoModel> = Single.create { emitter ->
-        InfoModel(
+    override suspend fun itemInfo(model: ItemModel): InfoModel {
+        val doc = model.url.toJsoup()
+        return InfoModel(
             source = Sources.WCOSTREAMCC,
-            url = source.url,
-            title = source.title,
+            url = model.url,
+            title = model.title,
             description = doc.select(".description > p").text().trim(),
             imageUrl = doc.select(".film-poster-img").attr("src"),
             genres = doc.select("div.elements div.row > div:nth-child(1) > div.row-line:nth-child(5) > a")
@@ -370,18 +330,17 @@ object WcoStreamCC : ShowApi(
                         name = it.text(),
                         url = it.attr("href"),
                         uploaded = "",
-                        sourceUrl = source.url,
+                        sourceUrl = model.url,
                         source = Sources.WCOSTREAMCC
                     )
                 }
                 .reversed(),
             alternativeNames = emptyList()
         )
-            .let(emitter::onSuccess)
     }
 
-    override fun getChapterInfo(chapterModel: ChapterModel): Single<List<Storage>> = Single.create { emitter ->
-        chapterModel.url.toJsoup()
+    override suspend fun chapterInfo(chapterModel: ChapterModel): List<Storage> {
+        return chapterModel.url.toJsoup()
             .select("#servers-list > ul > li")
             .fastMap {
                 mapOf(
@@ -391,7 +350,6 @@ object WcoStreamCC : ShowApi(
             }
             .fastMap { WcoStreamExtractor.getUrl(it["link"].orEmpty()) }
             .flatten()
-            .let(emitter::onSuccess)
     }
 
     private fun fixAnimeLink(url: String): String {
@@ -400,9 +358,9 @@ object WcoStreamCC : ShowApi(
         return "$baseUrl/anime/$aniId"
     }
 
-    override fun searchList(searchText: CharSequence, page: Int, list: List<ItemModel>): Single<List<ItemModel>> = Single.create { emitter ->
+    override suspend fun search(searchText: CharSequence, page: Int, list: List<ItemModel>): List<ItemModel> {
         val url = "$baseUrl/search"
-        Jsoup.connect(url)
+        return Jsoup.connect(url)
             .data("keyword", searchText.toString())
             .get()
             .select(".film_list-wrap > .flw-item")
@@ -421,20 +379,17 @@ object WcoStreamCC : ShowApi(
                     source = Sources.WCOSTREAMCC
                 )
             }
-            .let(emitter::onSuccess)
-
     }
 
-    override fun getSourceByUrl(url: String): Single<ItemModel> = Single.create { emitter ->
+    override suspend fun sourceByUrl(url: String): ItemModel {
         val doc = url.toJsoup()
-        ItemModel(
+        return ItemModel(
             source = Sources.WCOSTREAMCC,
             url = url,
             title = doc.select("meta[name=\"title\"]").attr("content").split("| W")[0],
             description = doc.select(".description > p").text().trim(),
             imageUrl = doc.select(".film-poster-img").attr("src")
         )
-            .let(emitter::onSuccess)
     }
 
 }

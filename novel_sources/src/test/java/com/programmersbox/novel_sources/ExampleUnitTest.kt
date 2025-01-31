@@ -2,7 +2,10 @@ package com.programmersbox.novel_sources
 
 import com.programmersbox.gsonutils.fromJson
 import com.programmersbox.gsonutils.getJsonApi
+import com.programmersbox.novel_sources.novels.BestLightNovel
+import com.programmersbox.novel_sources.novels.NovelUpdates
 import com.programmersbox.novel_sources.novels.WuxiaWorld
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -16,6 +19,33 @@ import org.junit.Test
 class ExampleUnitTest {
 
     @Test
+    fun novelUpdates() = runBlocking {
+        val n = NovelUpdates
+        val r = n.recent()
+        println(r)
+        val d = r.first().toInfoModel().first().getOrNull()
+        println(d)
+        val c = d?.chapters?.first()?.getChapterInfo()?.first()
+        println(c)
+    }
+
+    @Test
+    fun bestlightnovelTest() = runBlocking {
+
+        println(BestLightNovel.baseUrl.toJsoup())
+        /*
+        val f = BestLightNovel.getRecentFlow(1).first().first()
+        println(f)
+
+        val f1 = f.toInfoModelFlow().first().getOrThrow()
+        println(f1.imageUrl)
+
+        val f2 = f1.chapters.first().getChapterInfoFlow().first().first().link
+        println(f2)*/
+
+    }
+
+    @Test
     fun novelTest2() = runBlocking {
 
         //val f = WuxiaWorld.getList(2).blockingGet()
@@ -26,11 +56,7 @@ class ExampleUnitTest {
 
         //println(WuxiaWorld.getSourceByUrl("https://wuxiaworld.online/236130/start-a-dungeon"))
 
-        println(
-            WuxiaWorld.searchList("solo", 1, emptyList())
-                .blockingGet()
-                .joinToString("\n")
-        )
+        println(WuxiaWorld.search("solo", 1, emptyList()).joinToString("\n"))
 
     }
 

@@ -2,11 +2,14 @@ package com.programmersbox.manga_sources.manga
 
 import androidx.compose.ui.util.fastMap
 import com.programmersbox.manga_sources.Sources
-import com.programmersbox.manga_sources.utilities.NetworkHelper
-import com.programmersbox.manga_sources.utilities.asJsoup
-import com.programmersbox.manga_sources.utilities.cloudflare
-import com.programmersbox.models.*
-import io.reactivex.Single
+import com.programmersbox.models.ApiService
+import com.programmersbox.models.ChapterModel
+import com.programmersbox.models.InfoModel
+import com.programmersbox.models.ItemModel
+import com.programmersbox.models.Storage
+import com.programmersbox.source_utilities.NetworkHelper
+import com.programmersbox.source_utilities.asJsoup
+import com.programmersbox.source_utilities.cloudflare
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -17,8 +20,8 @@ object AsuraScans : ApiService, KoinComponent {
     private val helper: NetworkHelper by inject()
     //override val canScroll: Boolean = true
 
-    override fun getRecent(page: Int): Single<List<ItemModel>> = Single.create {
-        val models = cloudflare(
+    override suspend fun recent(page: Int): List<ItemModel> {
+        return cloudflare(
             helper,
             "$baseUrl/manga/?page=$page&order=update",
             "referer" to baseUrl,
@@ -36,12 +39,10 @@ object AsuraScans : ApiService, KoinComponent {
                     source = Sources.ASURA_SCANS
                 )
             }
-
-        it.onSuccess(models)
     }
 
-    override fun getList(page: Int): Single<List<ItemModel>> = Single.create {
-        val models = cloudflare(
+    override suspend fun allList(page: Int): List<ItemModel> {
+        return cloudflare(
             helper,
             "$baseUrl/manga/?page=$page&order=popular",
             "referer" to baseUrl,
@@ -60,21 +61,9 @@ object AsuraScans : ApiService, KoinComponent {
                     source = Sources.ASURA_SCANS
                 )
             }
-
-        it.onSuccess(models)
     }
 
-    override fun searchList(searchText: CharSequence, page: Int, list: List<ItemModel>): Single<List<ItemModel>> = try {
-        if (searchText.isBlank()) {
-            super.searchList(searchText, page, list)
-        } else {
-            super.searchList(searchText, page, list)
-        }
-    } catch (e: Exception) {
-        super.searchList(searchText, page, list)
-    }
-
-    override fun getItemInfo(model: ItemModel): Single<InfoModel> = Single.create {
+    override suspend fun itemInfo(model: ItemModel): InfoModel {
         val request = cloudflare(
             helper,
             model.url,
@@ -96,7 +85,7 @@ object AsuraScans : ApiService, KoinComponent {
                 )
             }
 
-        val info = InfoModel(
+        return InfoModel(
             title = model.title,
             description = i.select("div.desc p, div.entry-content p").joinToString("\n") { it.text() },
             url = model.url,
@@ -106,13 +95,9 @@ object AsuraScans : ApiService, KoinComponent {
             alternativeNames = emptyList(),
             source = Sources.ASURA_SCANS
         )
-
-        it.onSuccess(info)
-
     }
 
-    override fun getSourceByUrl(url: String): Single<ItemModel> = Single.create {
-
+    override suspend fun sourceByUrl(url: String): ItemModel {
         val request = cloudflare(
             helper,
             url,
@@ -122,21 +107,17 @@ object AsuraScans : ApiService, KoinComponent {
 
         val i = request.select("div.bigcontent, div.animefull, div.main-info")
 
-        val info = ItemModel(
+        return ItemModel(
             title = i.select("h1.entry-title").text(),
             description = i.select("div.desc p, div.entry-content p").joinToString("\n") { it.text() },
             url = url,
             imageUrl = i.select("div.thumb img").let { if (it.hasAttr("data-src")) it.attr("abs:data-src") else it.attr("abs:src") },
             source = Sources.ASURA_SCANS
         )
-
-        it.onSuccess(info)
-
     }
 
-    override fun getChapterInfo(chapterModel: ChapterModel): Single<List<Storage>> = Single.create {
-
-        val request = cloudflare(
+    override suspend fun chapterInfo(chapterModel: ChapterModel): List<Storage> {
+        return cloudflare(
             helper,
             chapterModel.url,
             "referer" to chapterModel.url,
@@ -146,9 +127,6 @@ object AsuraScans : ApiService, KoinComponent {
             .filterNot { it.attr("abs:src").isNullOrEmpty() }
             .fastMap { it.attr("abs:src") }
             .fastMap { Storage(link = it, source = chapterModel.url, quality = "Good", sub = "Yes") }
-
-        it.onSuccess(request)
-
     }
 
 }

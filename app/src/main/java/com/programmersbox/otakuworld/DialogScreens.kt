@@ -12,33 +12,75 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.*
+import androidx.compose.material.BottomSheetScaffold
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowRight
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MotionPhotosAuto
+import androidx.compose.material.icons.filled.SettingsBrightness
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.filled.ViewArray
+import androidx.compose.material.rememberBottomSheetScaffoldState
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentEnforcement
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.contentColorFor
-import androidx.compose.runtime.*
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.layout.*
+import androidx.compose.ui.layout.LayoutModifier
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -50,16 +92,27 @@ import androidx.constraintlayout.compose.ExperimentalMotionApi
 import androidx.constraintlayout.compose.MotionLayout
 import androidx.constraintlayout.compose.MotionLayoutDebugFlags
 import androidx.constraintlayout.compose.MotionScene
-import com.google.accompanist.insets.ProvideWindowInsets
-import com.google.accompanist.pager.ExperimentalPagerApi
-import com.google.accompanist.pager.HorizontalPager
-import com.google.accompanist.pager.rememberPagerState
-import com.programmersbox.uiviews.utils.*
+import com.programmersbox.uiviews.utils.BaseBottomSheetDialogFragment
+import com.programmersbox.uiviews.utils.CheckBoxSetting
+import com.programmersbox.uiviews.utils.PreferenceSetting
+import com.programmersbox.uiviews.utils.SliderSetting
+import com.programmersbox.uiviews.utils.SwitchSetting
+import com.programmersbox.uiviews.presentation.components.FullDynamicThemePrimaryColorsFromImage
+import com.programmersbox.uiviews.presentation.components.rememberDynamicColorState
+import com.programmersbox.uiviews.utils.currentColorScheme
 import kotlinx.coroutines.channels.ticker
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
-import java.util.*
+import java.util.EnumSet
 import kotlin.math.roundToInt
 import kotlin.random.Random
 import kotlin.random.nextInt
@@ -70,7 +123,6 @@ class TestDialogFragment : BaseBottomSheetDialogFragment() {
         ExperimentalMaterial3Api::class,
         ExperimentalMaterialApi::class,
         ExperimentalComposeUiApi::class,
-        ExperimentalPagerApi::class,
         ExperimentalFoundationApi::class,
         ExperimentalMotionApi::class
     )
@@ -79,7 +131,7 @@ class TestDialogFragment : BaseBottomSheetDialogFragment() {
         savedInstanceState: Bundle?
     ): View = ComposeView(requireContext()).apply {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(viewLifecycleOwner))
-        setContent { ProvideWindowInsets { MaterialTheme(currentScheme) { TestView { dismiss() } } } }
+        setContent { MaterialTheme(currentScheme) { TestView { dismiss() } } }
     }
 
     override fun onStart() {
@@ -97,14 +149,13 @@ enum class SettingLocation {
 }
 
 @ExperimentalMotionApi
-@ExperimentalPagerApi
 @ExperimentalComposeUiApi
 @ExperimentalMaterial3Api
 @ExperimentalFoundationApi
 @ExperimentalMaterialApi
 @Composable
 fun TestView(closeClick: () -> Unit) {
-    val scrollBehavior = remember { TopAppBarDefaults.pinnedScrollBehavior() }
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     val state = rememberBottomSheetScaffoldState()
     val scope = rememberCoroutineScope()
     var location: SettingLocation? by remember { mutableStateOf(null) }
@@ -127,7 +178,7 @@ fun TestView(closeClick: () -> Unit) {
                     actions = { IconButton(onClick = { closeClick() }) { Icon(imageVector = Icons.Default.Close, contentDescription = null) } },
                     scrollBehavior = scrollBehavior
                 )
-                androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
             }
         },
         sheetPeekHeight = 0.dp,
@@ -231,8 +282,7 @@ fun TestView(closeClick: () -> Unit) {
 @ExperimentalMaterialApi
 @Composable
 fun SwitchView(closeClick: () -> Unit) {
-    val scrollBehavior = remember { TopAppBarDefaults.pinnedScrollBehavior() }
-
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     Scaffold(
         topBar = {
             Column {
@@ -245,7 +295,7 @@ fun SwitchView(closeClick: () -> Unit) {
                     },
                     scrollBehavior = scrollBehavior
                 )
-                androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -270,8 +320,7 @@ fun SwitchView(closeClick: () -> Unit) {
 @ExperimentalMaterialApi
 @Composable
 fun CheckView(closeClick: () -> Unit) {
-    val scrollBehavior = remember { TopAppBarDefaults.pinnedScrollBehavior() }
-
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     Scaffold(
         topBar = {
             Column {
@@ -284,7 +333,7 @@ fun CheckView(closeClick: () -> Unit) {
                     },
                     scrollBehavior = scrollBehavior
                 )
-                androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -303,18 +352,20 @@ fun CheckView(closeClick: () -> Unit) {
     }
 }
 
-@ExperimentalPagerApi
 @ExperimentalComposeUiApi
 @ExperimentalMaterial3Api
 @ExperimentalFoundationApi
 @ExperimentalMaterialApi
 @Composable
 fun PagerView(closeClick: () -> Unit) {
-    val scrollBehavior = remember { TopAppBarDefaults.pinnedScrollBehavior() }
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     val scope = rememberCoroutineScope()
-    val state = rememberPagerState()
-    val currentPage by remember { derivedStateOf { state.currentPage } }
     val pageCount = 5
+    val state = rememberPagerState(
+        initialPage = 0,
+        initialPageOffsetFraction = 0f
+    ) { pageCount }
+    val currentPage by remember { derivedStateOf { state.currentPage } }
     //TODO: Look at this for a number picker setting
     // https://github.com/ChargeMap/Compose-NumberPicker/blob/master/lib/src/main/kotlin/com/chargemap/compose/numberpicker/NumberPicker.kt
     Scaffold(
@@ -325,7 +376,7 @@ fun PagerView(closeClick: () -> Unit) {
                     actions = { IconButton(onClick = { closeClick() }) { Icon(imageVector = Icons.Default.Close, contentDescription = null) } },
                     scrollBehavior = scrollBehavior
                 )
-                androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -349,7 +400,6 @@ fun PagerView(closeClick: () -> Unit) {
             }
             HorizontalPager(
                 state = state,
-                count = pageCount,
                 verticalAlignment = Alignment.Top
             ) { page ->
 
@@ -405,7 +455,7 @@ fun PagerView(closeClick: () -> Unit) {
                                     var currentSelection by remember { mutableStateOf(dropDownSetting) }
 
                                     AlertDialog(
-                                        shape = RoundedCornerShape(5.dp),
+                                        shape = RoundedCornerShape(4.dp),
                                         onDismissRequest = { showPopup = false },
                                         title = { Text("Choose a Favorite") },
                                         text = {
@@ -416,8 +466,8 @@ fun PagerView(closeClick: () -> Unit) {
                                                         modifier = Modifier
                                                             .fillMaxWidth()
                                                             .clickable(
-                                                                indication = rememberRipple(),
-                                                                interactionSource = remember { MutableInteractionSource() }
+                                                                indication = ripple(),
+                                                                interactionSource = null
                                                             ) { currentSelection = it }
                                                             .border(0.dp, Color.Transparent, RoundedCornerShape(20.dp))
                                                     ) {
@@ -481,7 +531,7 @@ fun PagerView(closeClick: () -> Unit) {
                                                     text = { androidx.compose.material3.Text(settingLocation.toString()) }
                                                 )
                                                 if (index < optionsList.value.size - 1)
-                                                    androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                                                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
                                             }
                                         }
                                     }
@@ -557,13 +607,13 @@ fun PagerView(closeClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 fun Modifier.minimumTouchTargetSizeCustom(): Modifier = composed {
-    if (androidx.compose.material3.LocalMinimumTouchTargetEnforcement.current) {
+    if (LocalMinimumInteractiveComponentEnforcement.current) {
         // TODO: consider using a hardcoded value of 48.dp instead to avoid inconsistent UI if the
         // LocalViewConfiguration changes across devices / during runtime.
         val size = LocalViewConfiguration.current.minimumTouchTargetSize
         MinimumTouchTargetModifierCustom(size)
     } else {
-        Modifier
+        this@minimumTouchTargetSizeCustom
     }
 }
 
@@ -601,7 +651,7 @@ class MinimumTouchTargetModifierCustom(val size: DpSize) : LayoutModifier {
 @Composable
 fun TextFieldSetting(value: String, onValueChange: (String) -> Unit) {
     val keyboardController = LocalSoftwareKeyboardController.current
-    PreferenceSetting(
+    /*PreferenceSetting(
         settingTitle = { Text("Text Field") },
         endIcon = {
             TextField(
@@ -612,7 +662,7 @@ fun TextFieldSetting(value: String, onValueChange: (String) -> Unit) {
                 modifier = Modifier.onFocusChanged { if (!it.isFocused) keyboardController?.hide() }
             )
         }
-    )
+    )*/
 }
 
 @ExperimentalComposeUiApi
@@ -621,7 +671,7 @@ fun TextFieldSetting(value: String, onValueChange: (String) -> Unit) {
 @ExperimentalMaterialApi
 @Composable
 fun OptimisticView(closeClick: () -> Unit) {
-    val scrollBehavior = remember { TopAppBarDefaults.pinnedScrollBehavior() }
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -632,7 +682,7 @@ fun OptimisticView(closeClick: () -> Unit) {
                     actions = { IconButton(onClick = { closeClick() }) { Icon(imageVector = Icons.Default.Close, contentDescription = null) } },
                     scrollBehavior = scrollBehavior
                 )
-                androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -683,7 +733,7 @@ fun OptimisticView(closeClick: () -> Unit) {
                     onClick = { scope.launch { count2.emit(++count) } }
                 ) { Text("Hi: $timer") }
 
-                androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
             }
 
             item {
@@ -741,8 +791,7 @@ fun OptimisticView(closeClick: () -> Unit) {
 @ExperimentalMotionApi
 @Composable
 fun MotionLayoutView(closeClick: () -> Unit) {
-    val scrollBehavior = remember { TopAppBarDefaults.pinnedScrollBehavior() }
-
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     Scaffold(
         topBar = {
             Column {
@@ -751,7 +800,7 @@ fun MotionLayoutView(closeClick: () -> Unit) {
                     actions = { IconButton(onClick = { closeClick() }) { Icon(imageVector = Icons.Default.Close, contentDescription = null) } },
                     scrollBehavior = scrollBehavior
                 )
-                androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -829,7 +878,7 @@ fun MotionLayoutView(closeClick: () -> Unit) {
 @ExperimentalFoundationApi
 @Composable
 fun ThemeingView(closeClick: () -> Unit) {
-    val scrollBehavior = remember { TopAppBarDefaults.pinnedScrollBehavior() }
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -840,7 +889,7 @@ fun ThemeingView(closeClick: () -> Unit) {
                     actions = { IconButton(onClick = { closeClick() }) { Icon(imageVector = Icons.Default.Close, contentDescription = null) } },
                     scrollBehavior = scrollBehavior
                 )
-                androidx.compose.material3.Divider()
+                HorizontalDivider()
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -883,7 +932,7 @@ fun ThemeingView(closeClick: () -> Unit) {
                         MaterialTheme(current) {
                             Box(
                                 modifier = Modifier
-                                    .height(15.dp)
+                                    .height(14.dp)
                                     .weight(1f)
                                     .background(MaterialTheme.colorScheme.choice())
                             )
@@ -892,7 +941,7 @@ fun ThemeingView(closeClick: () -> Unit) {
                         FullDynamicThemePrimaryColorsFromImage(dominantColor) {
                             Box(
                                 modifier = Modifier
-                                    .height(15.dp)
+                                    .height(14.dp)
                                     .weight(1f)
                                     .background(MaterialTheme.colorScheme.choice())
                             )

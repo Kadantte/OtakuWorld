@@ -11,9 +11,7 @@ import com.programmersbox.models.ChapterModel
 import com.programmersbox.models.InfoModel
 import com.programmersbox.models.ItemModel
 import com.programmersbox.models.Storage
-import io.reactivex.Single
 import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import java.text.SimpleDateFormat
@@ -46,8 +44,8 @@ abstract class AnimeKisa(allPath: String) : ShowApi(
         )
     }
 
-    override fun getRecent(doc: Document): Single<List<ItemModel>> = Single.create { emitter ->
-        doc
+    override suspend fun recent(page: Int): List<ItemModel> {
+        return recentPath(page)
             .select("div.listAnimes")
             .select("div.episode-box-2")
             .fastMap {
@@ -59,11 +57,10 @@ abstract class AnimeKisa(allPath: String) : ShowApi(
                     source = this
                 )
             }
-            .let(emitter::onSuccess)
     }
 
-    override fun getList(doc: Document): Single<List<ItemModel>> = Single.create { emitter ->
-        doc
+    override suspend fun allList(page: Int): List<ItemModel> {
+        return all(page)
             .select("a.an")
             .fastMap {
                 ItemModel(
@@ -74,14 +71,14 @@ abstract class AnimeKisa(allPath: String) : ShowApi(
                     source = this
                 )
             }
-            .let(emitter::onSuccess)
     }
 
-    override fun getItemInfo(source: ItemModel, doc: Document): Single<InfoModel> = Single.create { emitter ->
-        InfoModel(
+    override suspend fun itemInfo(model: ItemModel): InfoModel {
+        val doc = model.url.toJsoup()
+        return InfoModel(
             source = this,
-            url = source.url,
-            title = source.title,
+            url = model.url,
+            title = model.title,
             description = doc.selectFirst("div.infodes2")?.text().orEmpty(),
             imageUrl = doc.select("div.infopicbox").select("img").attr("abs:src"),
             genres = doc.select("a.infoan").eachText(),
@@ -90,40 +87,35 @@ abstract class AnimeKisa(allPath: String) : ShowApi(
                     name = it.text(),
                     url = it.attr("abs:href"),
                     uploaded = dateFormat.format(Date(it.select("div.timeS").attr("time").toLong() * 1000)),
-                    sourceUrl = source.url,
+                    sourceUrl = model.url,
                     source = this
                 )
             },
             alternativeNames = emptyList()
         )
-            .let(emitter::onSuccess)
     }
 
-    override fun searchList(searchText: CharSequence, page: Int, list: List<ItemModel>): Single<List<ItemModel>> {
-        return Single.create<List<ItemModel>> {
-            getApi("$baseUrl/search") { addEncodedQueryParameter("q", searchText.toString()) }
-                .let { (it as? ApiResponse.Success)?.body }
-                ?.let { Jsoup.parse(it) }
-                ?.select("div.similarbox > a.an")
-                ?.mapNotNull {
-                    if (it.attr("href") == "/") null
-                    else
-                        ItemModel(
-                            title = it.select("div > div > div > div > div.similardd").text(),
-                            description = "",
-                            imageUrl = "$baseUrl${it.select("img.coveri").attr("src")}",
-                            url = "$baseUrl${it.attr("href")}",
-                            source = this
-                        )
-                }
-                ?.let(it::onSuccess) ?: it.onError(Throwable("Something went wrong"))
-        }
-            .onErrorResumeNext(super.searchList(searchText, page, list))
+    override suspend fun search(searchText: CharSequence, page: Int, list: List<ItemModel>): List<ItemModel> {
+        return getApi("$baseUrl/search") { addEncodedQueryParameter("q", searchText.toString()) }
+            .let { (it as? ApiResponse.Success)?.body }
+            ?.let { Jsoup.parse(it) }
+            ?.select("div.similarbox > a.an")
+            ?.mapNotNull {
+                if (it.attr("href") == "/") null
+                else
+                    ItemModel(
+                        title = it.select("div > div > div > div > div.similardd").text(),
+                        description = "",
+                        imageUrl = "$baseUrl${it.select("img.coveri").attr("src")}",
+                        url = "$baseUrl${it.attr("href")}",
+                        source = this
+                    )
+            }.orEmpty()
     }
 
-    override fun getChapterInfo(chapterModel: ChapterModel): Single<List<Storage>> = Single.create {
+    override suspend fun chapterInfo(chapterModel: ChapterModel): List<Storage> {
         val doc = chapterModel.url.toJsoup()
-        val downloadUrl = "var VidStreaming = \"(.*?)\";".toRegex()
+        return "var VidStreaming = \"(.*?)\";".toRegex()
             .find(doc.toString())?.groups?.get(1)?.value?.replace("load.php", "download")
             ?.toJsoup()
             ?.select("div.dowload")
@@ -137,19 +129,16 @@ abstract class AnimeKisa(allPath: String) : ShowApi(
                 ).apply { headers["referer"] = chapterModel.url }
             }
             .orEmpty()
-
-        it.onSuccess(downloadUrl)
     }
 
-    override fun getSourceByUrl(url: String): Single<ItemModel> = Single.create { emitter ->
+    override suspend fun sourceByUrl(url: String): ItemModel {
         val doc = url.toJsoup()
-        ItemModel(
+        return ItemModel(
             title = doc.select("div.infodesbox").select("h1").text(),
             description = doc.select("div.infodes2").text(),
             imageUrl = doc.select("div.infopicbox").select("img").attr("abs:src"),
             url = url,
             source = this
-        ).let(emitter::onSuccess)
+        )
     }
-
 }

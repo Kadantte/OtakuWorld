@@ -1,10 +1,26 @@
+# Explanation
+[English](README.md) |
+[中文](README-zh.md)
 # OtakuWorld
  ![visitors](https://page-views.glitch.me/badge?page_id=jakepurple13.OtakuWorld)
  ![Build Status](https://github.com/jakepurple13/OtakuWorld/actions/workflows/build_check.yaml/badge.svg)
  
  [Discord Link](https://discord.gg/MhhHMWqryg) There's a discord now!!! This is something that will probably be changed and modified since it's the first time I've done this.
- 
+
+For the nightly release, go [here](https://github.com/jakepurple13/OtakuWorld/releases/tag/nightly)
+
 A combined version of my [MangaWorld](https://github.com/jakepurple13/MangaWorld) and [AnimeWorld](https://github.com/jakepurple13/AnimeWorld) apps. This was created because there were a ton of shared elements between the two apps so I combined them, allowing two separate apps but a lot of the same base logic.
+
+These apps do not contain ANY sources themselves. In order to pull sources, the apps do contain some
+default sources.
+
+For MangaWorld: Any sources that work with [Mihon](https://mihon.app/) will work with
+MangaWorld...After the bridge
+is installed.
+
+For AnimeWorld: Any sources that work with [Aniyomi](https://aniyomi.org/) will work with
+AnimeWorld...After the
+bridge is installed.
 
 ## Contents
    * [Screenshots](#screenshots)
@@ -14,7 +30,7 @@ A combined version of my [MangaWorld](https://github.com/jakepurple13/MangaWorld
       * [NovelWorld](#novelworld)
       * [Otaku Manager](#otaku-manager)
    * [Features](#features)
-      * [Shared](#shared)
+        * [Shared](#shared-features)
       * [MangaWorld](#mangaworld-1)
       * [AnimeWorld](#animeworld-1)
       * [AnimeWorldTV](#animeworldtv-1)
@@ -124,6 +140,9 @@ If not using `adb`:
 
 2. Follow [Android Authority][aa]'s steps
 
+# Building Locally
+Be sure to change the build variant to a `noFirebase` variant. Other than that, nothing needs to change to run/build locally!
+
 # Issues
 
 If you run into any issues, please create an issue request with the following details:
@@ -145,6 +164,8 @@ If you want to add a new source or have a change that might make the app better
 - Make changes
 - Push and create a new PR
 - Add me (@jakepurple13) as a reviewer
+
+Disclaimer: I am not affiliated with Tachiyomi app or any fork hosted on GitHub.
 
 [//]: # (Reference Links)
   [aa]: <https://www.androidauthority.com/sideloading-apps-on-android-tv-1189896/>

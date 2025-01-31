@@ -3,19 +3,27 @@ package com.programmersbox.anime_sources.utilities
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.programmersbox.anime_sources.ShowApi
-import okhttp3.*
+import okhttp3.CacheControl
+import okhttp3.FormBody
+import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Interceptor
+import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.Response
 import okio.BufferedSink
 import java.net.URI
-import java.util.*
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
-import kotlin.collections.HashMap
 import kotlin.math.pow
 
 fun getApi(url: String, block: HttpUrl.Builder.() -> Unit = {}): ApiResponse = apiAccess(url, block) { get() }
@@ -270,8 +278,9 @@ class M3u8Helper {
     }
 
     private fun getParentLink(uri: String): String {
-        val split = uri.split("/").toMutableList()
-        split.removeLast()
+        val split = uri.split("/")
+            .dropLast(1)
+            .toMutableList()
         return split.joinToString("/")
     }
 
@@ -601,3 +610,30 @@ fun ShowApi.fixUrl(url: String): String {
         return "$baseUrl/$url"
     }
 }
+
+/*val json by lazy {
+    Json {
+        prettyPrint = true
+        isLenient = true
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
+}
+
+val client by lazy {
+    HttpClient {
+        install(Logging) {
+            logger = Logger.SIMPLE
+            level = LogLevel.ALL
+        }
+        install(ContentNegotiation) {
+            json(json)
+        }
+        defaultRequest {
+            header(HttpHeaders.CacheControl, "no-cache")
+            header(HttpHeaders.ContentType, "application/json; charset=utf-8")
+            header(HttpHeaders.Accept, "application/json")
+            header(HttpHeaders.AcceptEncoding, "gzip")
+        }
+    }
+}*/

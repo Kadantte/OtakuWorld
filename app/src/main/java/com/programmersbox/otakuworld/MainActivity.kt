@@ -2,92 +2,100 @@ package com.programmersbox.otakuworld
 
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.*
-import androidx.compose.material.ButtonColors
-import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.ButtonElevation
-import androidx.compose.material.FabPosition
-import androidx.compose.material.FloatingActionButton
-import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.ProvideTextStyle
-import androidx.compose.material.Text
-import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.VerticalAlignBottom
+import androidx.compose.material.icons.filled.VerticalAlignTop
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastAny
-import com.google.accompanist.pager.ExperimentalPagerApi
 import com.programmersbox.favoritesdatabase.DbModel
 import com.programmersbox.helpfulutils.itemRangeOf
-import com.programmersbox.models.ApiService
 import com.programmersbox.models.ItemModel
-import com.programmersbox.models.SwatchInfo
-import com.programmersbox.uiviews.utils.*
-import com.skydoves.landscapist.glide.GlideImage
-import com.skydoves.landscapist.palette.BitmapPalette
-import io.reactivex.disposables.CompositeDisposable
+import com.programmersbox.uiviews.utils.ComposableUtils
+import com.programmersbox.uiviews.utils.Coordinator
+import com.programmersbox.uiviews.utils.CoordinatorModel
+import com.programmersbox.uiviews.presentation.components.MaterialCard
+import com.programmersbox.uiviews.presentation.components.icons.Github
+import com.programmersbox.uiviews.utils.coordinatorOffset
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.properties.Delegates
 import kotlin.random.Random
-import com.programmersbox.anime_sources.Sources as ASources
-import com.programmersbox.manga_sources.Sources as MSources
-import com.programmersbox.novel_sources.Sources as NSources
 
 class MainActivity : AppCompatActivity() {
 
-    private val disposable = CompositeDisposable()
     private val sourceList = mutableStateListOf<ItemModel>()
     private val favorites = mutableStateListOf<DbModel>()
-
     @OptIn(
         ExperimentalMaterial3Api::class,
-        ExperimentalMaterialApi::class,
-        ExperimentalPagerApi::class,
         ExperimentalAnimationApi::class,
         ExperimentalFoundationApi::class
     )
@@ -128,6 +136,8 @@ class MainActivity : AppCompatActivity() {
 
             androidx.compose.material3.MaterialTheme(colorScheme = currentScheme) {
 
+                OtherStuffTrying()
+
                 /*var list by remember { mutableStateOf(listOf("A", "B", "C")) }
                 LazyColumn {
                     item {
@@ -144,10 +154,10 @@ class MainActivity : AppCompatActivity() {
                     }
                 }*/
 
-                val scrollBehavior = remember { TopAppBarDefaults.pinnedScrollBehavior() }
+                val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
                 val scaffoldState = rememberBottomSheetScaffoldState()
 
-                BackHandler(scaffoldState.bottomSheetState.isExpanded) { scope.launch { scaffoldState.bottomSheetState.collapse() } }
+                /*BackHandler(scaffoldState.bottomSheetState.isExpanded) { scope.launch { scaffoldState.bottomSheetState.collapse() } }
 
                 val showSettings: () -> Unit = {
                     TestDialogFragment().showNow(supportFragmentManager, null)
@@ -235,6 +245,99 @@ class MainActivity : AppCompatActivity() {
                         verticalArrangement = Arrangement.Center
                     ) {
 
+                        val swipeableState = rememberSwipeableState(initialValue = SwipeState.Unswiped)
+
+                        val transition = updateTransition(targetState = swipeableState.currentValue, label = "")
+
+                        val transitionSpec: @Composable Transition.Segment<SwipeState>.() -> FiniteAnimationSpec<Float> = {
+                            when {
+                                SwipeState.Swiped isTransitioningTo SwipeState.Unswiped ->
+                                    spring(stiffness = 50f)
+                                else ->
+                                    tween(durationMillis = 500)
+                            }
+                        }
+
+                        val scale by transition.animateFloat(
+                            label = "scale",
+                            transitionSpec = transitionSpec
+                        ) {
+                            when (it) {
+                                SwipeState.Swiped -> 0f
+                                SwipeState.Unswiped -> 1f
+                            }
+                        }
+
+                        val rotate by transition.animateFloat(
+                            label = "rotate",
+                            transitionSpec = transitionSpec
+                        ) {
+                            when (it) {
+                                SwipeState.Swiped -> 360f
+                                SwipeState.Unswiped -> 0f
+                            }
+                        }
+
+                        androidx.compose.material3.Button(onClick = { scope.launch { swipeableState.animateTo(SwipeState.Unswiped) } }) {
+                            androidx.compose.material3.Text("Animate Unswipe")
+                        }
+
+                        androidx.compose.material3.Button(onClick = { scope.launch { swipeableState.snapTo(SwipeState.Unswiped) } }) {
+                            androidx.compose.material3.Text("Unswipe")
+                        }
+
+                        Text("${swipeableState.progress.fraction}")
+
+                        com.programmersbox.uiviews.presentation.components.SwipeButton(
+                            swipeableState = swipeableState,
+                            iconGraphicsLayer = {
+                                scaleX = scale
+                                scaleY = scale
+                                rotationZ = rotate
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            text = {
+                                val textAlpha by transition.animateFloat(
+                                    transitionSpec = { tween(1000) },
+                                    label = ""
+                                ) { swipeState ->
+                                    when (swipeState) {
+                                        SwipeState.Swiped -> 1f
+                                        SwipeState.Unswiped -> 0f
+                                    }
+                                }
+                                androidx.compose.material3.Text(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.Center),
+                                    textAlign = TextAlign.Center,
+                                    text = "Completed",
+                                    color = androidx.compose.material3.LocalContentColor.current.copy(alpha = textAlpha)
+                                )
+
+                                val textAlphaInverse by animateFloatAsState(
+                                    if (swipeableState.offset.value > 10f) (1 - swipeableState.progress.fraction) else 1f
+                                )
+
+                                androidx.compose.material3.Text(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.Center),
+                                    textAlign = TextAlign.End,
+                                    text = "Swipe",
+                                    color = androidx.compose.material3.LocalContentColor.current.copy(alpha = textAlphaInverse)
+                                )
+                            },
+                            onSwipe = {}
+                        )
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            val connectivityStatus by connectivityStatus()
+                            Text("ConnectionState: ${connectivityStatus.name}")
+                        }
+
                         Text("Outlined Button")
                         androidx.compose.material3.OutlinedButton(
                             onClick = {
@@ -290,7 +393,7 @@ class MainActivity : AppCompatActivity() {
                             )
                         ) { androidx.compose.material3.Text("Open Settings") }
                     }
-                }
+                }*/
 
                 /*val scrollBehavior = remember { TopAppBarDefaults.enterAlwaysScrollBehavior() }
 
@@ -656,186 +759,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        disposable.dispose()
-    }
-}
-
-enum class SourceChoice(vararg val choices: ApiService) {
-    ANIME(ASources.GOGOANIME_VC, ASources.VIDSTREAMING),
-    MANGA(MSources.MANGA_HERE, MSources.MANGAMUTINY),
-    NOVEL(NSources.WUXIAWORLD)
 }
 
 @Composable
 private fun Color.animate() = animateColorAsState(this)
-
-@ExperimentalMaterialApi
-@Composable
-fun InfoCard2(
-    info: ItemModel,
-    favorites: List<DbModel>,
-    onClick: () -> Unit
-) {
-    val swatchInfo = remember { mutableStateOf<SwatchInfo?>(null) }
-
-    MaterialCard(
-        backgroundColor = swatchInfo.value?.rgb?.toComposeColor()?.animate()?.value ?: MaterialTheme.colors.surface,
-        modifier = Modifier.clickable { onClick() },
-        media = {
-            GlideImage(
-                imageModel = info.imageUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                bitmapPalette = BitmapPalette { p ->
-                    swatchInfo.value = p.vibrantSwatch?.let { s -> SwatchInfo(s.rgb, s.titleTextColor, s.bodyTextColor) }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(ComposableUtils.IMAGE_HEIGHT)
-                    /*.size(
-                        ComposableUtils.IMAGE_WIDTH,
-                        ComposableUtils.IMAGE_HEIGHT
-                    )*/
-                    .align(Alignment.CenterHorizontally)
-            )
-        },
-        headerOnTop = false,
-        header = {
-            ListItem(
-                icon = {
-                    Box {
-                        if (favorites.fastAny { f -> f.url == info.url }) {
-                            Icon(
-                                Icons.Default.Favorite,
-                                contentDescription = null,
-                                tint = swatchInfo.value?.bodyColor?.toComposeColor()?.animate()?.value ?: MaterialTheme.colors.primary,
-                                modifier = Modifier.align(Alignment.TopStart)
-                            )
-                        }
-                        Icon(
-                            Icons.Default.FavoriteBorder,
-                            contentDescription = null,
-                            tint = MaterialTheme.colors.onPrimary,
-                            modifier = Modifier.align(Alignment.TopStart)
-                        )
-                    }
-                },
-                text = {
-                    Text(
-                        info.title,
-                        color = swatchInfo.value?.bodyColor?.toComposeColor()?.animate()?.value ?: Color.Unspecified
-                    )
-                },
-                secondaryText = {
-                    Text(
-                        info.source.serviceName,
-                        color = swatchInfo.value?.titleColor?.toComposeColor()?.animate()?.value ?: Color.Unspecified
-                    )
-                }
-            )
-        },
-        supportingText = {
-            Text(
-                info.description,
-                color = swatchInfo.value?.titleColor?.toComposeColor()?.animate()?.value ?: Color.Unspecified
-            )
-        }
-    )
-}
-
-@ExperimentalMaterialApi
-@Composable
-fun InfoCard(
-    info: ItemModel,
-    favorites: List<DbModel>,
-    onClick: () -> Unit
-) {
-
-    val swatchInfo = remember { mutableStateOf<SwatchInfo?>(null) }
-
-    Card(
-        backgroundColor = swatchInfo.value?.rgb?.toComposeColor()?.animate()?.value ?: MaterialTheme.colors.surface,
-        modifier = Modifier.padding(4.dp),
-        onClick = onClick
-    ) {
-        Column {
-            Row {
-                GlideImage(
-                    imageModel = info.imageUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    bitmapPalette = BitmapPalette { p ->
-                        swatchInfo.value = p.vibrantSwatch?.let { s -> SwatchInfo(s.rgb, s.titleTextColor, s.bodyTextColor) }
-                    },
-                    modifier = Modifier
-                        .clip(
-                            MaterialTheme.shapes.medium
-                                .copy(
-                                    topEnd = CornerSize(0.dp),
-                                    bottomStart = CornerSize(0.dp),
-                                    bottomEnd = CornerSize(0.dp)
-                                )
-                        )
-                        .size(
-                            ComposableUtils.IMAGE_WIDTH / 1.5f,
-                            ComposableUtils.IMAGE_HEIGHT / 1.5f
-                        )
-                )
-
-                ListItem(
-                    overlineText = {
-                        Text(
-                            info.source.serviceName,
-                            color = swatchInfo.value?.titleColor?.toComposeColor()?.animate()?.value ?: Color.Unspecified
-                        )
-                    },
-                    text = {
-                        Text(
-                            info.title,
-                            color = swatchInfo.value?.bodyColor?.toComposeColor()?.animate()?.value ?: Color.Unspecified
-                        )
-                    },
-                    secondaryText = {
-                        Text(
-                            info.description,
-                            color = swatchInfo.value?.titleColor?.toComposeColor()?.animate()?.value ?: Color.Unspecified
-                        )
-                    }
-                )
-
-            }
-
-            androidx.compose.material3.Divider(
-                thickness = 0.5.dp,
-                color = swatchInfo.value?.titleColor?.toComposeColor()?.animate()?.value ?: MaterialTheme.colors.onSurface.copy(alpha = .12f)
-            )
-
-            Row {
-
-                Box(Modifier.padding(5.dp)) {
-                    if (favorites.fastAny { f -> f.url == info.url }) {
-                        Icon(
-                            Icons.Default.Favorite,
-                            contentDescription = null,
-                            tint = swatchInfo.value?.bodyColor?.toComposeColor()?.animate()?.value ?: MaterialTheme.colors.primary,
-                            modifier = Modifier.align(Alignment.TopStart)
-                        )
-                    }
-                    Icon(
-                        Icons.Default.FavoriteBorder,
-                        contentDescription = null,
-                        tint = MaterialTheme.colors.onPrimary,
-                        modifier = Modifier.align(Alignment.TopStart)
-                    )
-                }
-
-            }
-        }
-    }
-}
 
 fun Random.nextColor(
     alpha: Int = nextInt(0, 255),
@@ -844,14 +771,13 @@ fun Random.nextColor(
     blue: Int = nextInt(0, 255)
 ) = Color(red, green, blue, alpha)
 
-@ExperimentalMaterialApi
 @Preview
 @Composable
 fun MaterialCardPreview() {
 
     val media: @Composable ColumnScope.() -> Unit = {
         Image(
-            painter = painterResource(id = R.drawable.github_icon),
+            imageVector = Icons.Github,
             contentDescription = null,
             modifier = Modifier
                 .fillMaxWidth()
@@ -865,11 +791,11 @@ fun MaterialCardPreview() {
         TextButton(
             onClick = {},
             modifier = Modifier.weight(1f)
-        ) { Text("Action 1", style = MaterialTheme.typography.button) }
+        ) { Text("Action 1") }
         TextButton(
             onClick = {},
             modifier = Modifier.weight(1f)
-        ) { Text("Action 2", style = MaterialTheme.typography.button) }
+        ) { Text("Action 2") }
 
         Icon(
             Icons.Default.Favorite,
@@ -888,7 +814,7 @@ fun MaterialCardPreview() {
     }
 
     Column(
-        modifier = Modifier.padding(5.dp),
+        modifier = Modifier.padding(4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
 
@@ -896,9 +822,9 @@ fun MaterialCardPreview() {
             supportingText = supportingText,
             header = {
                 ListItem(
-                    text = { Text("Title goes here") },
-                    secondaryText = { Text("Secondary text") },
-                    icon = { Icon(Icons.Default.Image, null) }
+                    headlineContent = { Text("Title goes here") },
+                    supportingContent = { Text("Secondary text") },
+                    leadingContent = { Icon(Icons.Default.Image, null) }
                 )
             },
             media = media,
@@ -910,8 +836,8 @@ fun MaterialCardPreview() {
             supportingText = supportingText,
             header = {
                 ListItem(
-                    text = { Text("Title goes here") },
-                    secondaryText = { Text("Secondary text") }
+                    headlineContent = { Text("Title goes here") },
+                    supportingContent = { Text("Secondary text") }
                 )
             },
             media = media,
@@ -922,8 +848,8 @@ fun MaterialCardPreview() {
             headerOnTop = false,
             header = {
                 ListItem(
-                    text = { Text("Title goes here") },
-                    secondaryText = { Text("Secondary text") }
+                    headlineContent = { Text("Title goes here") },
+                    supportingContent = { Text("Secondary text") }
                 )
             },
             media = media,
@@ -941,8 +867,8 @@ fun MaterialCardPreview() {
             supportingText = supportingText,
             header = {
                 ListItem(
-                    text = { Text("Title goes here") },
-                    secondaryText = { Text("Secondary text") }
+                    headlineContent = { Text("Title goes here") },
+                    supportingContent = { Text("Secondary text") }
                 )
             },
             actions = actions
@@ -953,8 +879,8 @@ fun MaterialCardPreview() {
             supportingText = supportingText,
             header = {
                 ListItem(
-                    text = { Text("Title goes here") },
-                    secondaryText = { Text("Secondary text") }
+                    headlineContent = { Text("Title goes here") },
+                    supportingContent = { Text("Secondary text") }
                 )
             },
             media = media,
@@ -970,8 +896,8 @@ fun MaterialCardPreview() {
             supportingText = supportingText,
             header = {
                 ListItem(
-                    text = { Text("Title goes here") },
-                    secondaryText = { Text("Secondary text") }
+                    headlineContent = { Text("Title goes here") },
+                    supportingContent = { Text("Secondary text") }
                 )
             }
         )
@@ -984,8 +910,8 @@ fun MaterialCardPreview() {
         MaterialCard(
             header = {
                 ListItem(
-                    text = { Text("Title goes here") },
-                    secondaryText = { Text("Secondary text") }
+                    headlineContent = { Text("Title goes here") },
+                    supportingContent = { Text("Secondary text") }
                 )
             },
             actions = actions
@@ -993,15 +919,13 @@ fun MaterialCardPreview() {
 
         MaterialCard(
             shape = RoundedCornerShape(16.dp),
-            backgroundColor = Color.Blue,
             border = BorderStroke(1.dp, Color.Red),
-            elevation = 5.dp,
             headerOnTop = false,
             supportingText = supportingText,
             header = {
                 ListItem(
-                    text = { Text("Title goes here") },
-                    secondaryText = { Text("Secondary text") }
+                    headlineContent = { Text("Title goes here") },
+                    supportingContent = { Text("Secondary text") }
                 )
             },
             media = media,
@@ -1011,6 +935,7 @@ fun MaterialCardPreview() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NestedScrollExample() {
     // here we use LazyColumn that has build-in nested scroll, but we want to act like a
@@ -1061,7 +986,7 @@ fun NestedScrollExample() {
             title = { Text("toolbar offset is ${toolbarOffsetHeightPx.value}") }
         )
 
-        BottomAppBar(
+        androidx.compose.material3.BottomAppBar(
             modifier = Modifier
                 .height(toolbarHeight)
                 .align(Alignment.BottomCenter)
@@ -1070,6 +995,7 @@ fun NestedScrollExample() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomNestedScrollExample() {
 
@@ -1097,7 +1023,7 @@ fun CustomNestedScrollExample() {
     val bottomBar = remember {
         CoordinatorModel(56.dp) { it, model ->
             val animateBottomBar by animateIntAsState(if (showInfo) 0 else (it.roundToInt()), animationSpec)
-            BottomAppBar(
+            androidx.compose.material3.BottomAppBar(
                 modifier = Modifier
                     .height(56.dp)
                     .alpha(1f - (-animateBottomBar / model.heightPx))
@@ -1170,6 +1096,7 @@ fun CustomNestedScrollExample() {
     }
 }
 
+/*@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScaffoldNestedScrollExample() {
     val scope = rememberCoroutineScope()
@@ -1195,7 +1122,7 @@ fun ScaffoldNestedScrollExample() {
     val bottomBar = remember {
         CoordinatorModel1(56.dp) { it, model ->
             val animateBottomBar by animateIntAsState(if (showInfo) 0 else (it.roundToInt()), animationSpec)
-            BottomAppBar(
+            androidx.compose.material3.BottomAppBar(
                 modifier = Modifier
                     .height(56.dp - with(LocalDensity.current) { -animateBottomBar.toDp() })
                     .alpha(1f - (-animateBottomBar / model.heightPx))
@@ -1297,7 +1224,7 @@ fun ScaffoldNestedScrollExample() {
 
         scrollToBottom.Content()
     }
-}
+}*/
 
 class CoordinatorModel1(
     val height: Dp,
@@ -1318,16 +1245,15 @@ class CoordinatorModel1(
 
 @Composable
 fun TestData() = Column { repeat(10) { Text("Hello $it") } }
-
+/*
 @ExperimentalAnimationApi
-@ExperimentalMaterialApi
 @Composable
 fun SwipeButton(
     onSwiped: () -> Unit,
-    modifier: Modifier = Modifier,
     swipeButtonState: SwipeButtonState,
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    interactionSource: MutableInteractionSource = null,
     elevation: ButtonElevation? = ButtonDefaults.elevation(),
     shape: Shape = MaterialTheme.shapes.small,
     border: BorderStroke? = null,
@@ -1337,7 +1263,7 @@ fun SwipeButton(
     rotateIcon: Boolean = true,
     iconPadding: PaddingValues = PaddingValues(2.dp),
     loadingIndicator: @Composable BoxScope.() -> Unit = { HorizontalDottedProgressBar() },
-    content: @Composable RowScope.() -> Unit
+    content: @Composable RowScope.() -> Unit,
 ) {
     val contentColor by colors.contentColor(enabled)
     val dragOffset = remember { mutableStateOf(0f) }
@@ -1346,17 +1272,15 @@ fun SwipeButton(
     val swiped = swipeButtonState == SwipeButtonState.SWIPED
 
     Surface(
+        onClick = {},
         modifier = modifier.animateContentSize(),
+        enabled = enabled,
         shape = shape,
         color = colors.backgroundColor(enabled).value,
         contentColor = contentColor.copy(alpha = 1f),
         border = border,
         elevation = elevation?.elevation(enabled, interactionSource)?.value ?: 0.dp,
-        onClick = {},
-        enabled = enabled,
-        role = Role.Button,
-        interactionSource = interactionSource,
-        indication = rememberRipple()
+        interactionSource = interactionSource
     ) {
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize(),
@@ -1380,13 +1304,13 @@ fun SwipeButton(
                             .scale(animatedProgress.value)
                             .padding(iconPadding)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colors.onPrimary)
+                            .background(MaterialTheme.colorScheme.onPrimary)
                             .align(Alignment.Center)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Done,
                             contentDescription = "Done",
-                            tint = MaterialTheme.colors.primary
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -1511,14 +1435,13 @@ fun DrawCanvas(
             }
         }
     }
-}
+}*/
 
-@ExperimentalMaterialApi
 @ExperimentalFoundationApi
 @Composable
 fun BannerBox(
-    showBanner: Boolean = false,
     banner: @Composable () -> Unit,
+    showBanner: Boolean = false,
     content: @Composable () -> Unit
 ) {
     Box(Modifier.fillMaxSize()) {
