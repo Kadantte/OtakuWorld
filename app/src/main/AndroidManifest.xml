@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.programmersbox.otakuworld">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
@@ -26,13 +26,13 @@
         </activity>
 
         <receiver
-            android:name="com.programmersbox.uiviews.DeleteNotificationReceiver"
+            android:name="com.programmersbox.uiviews.checkers.DeleteNotificationReceiver"
             android:enabled="true"
             android:exported="true" />
 
         <receiver
             android:exported="true"
-            android:name="com.programmersbox.uiviews.BootReceived">
+            android:name="com.programmersbox.uiviews.checkers.BootReceived">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.PACKAGE_FIRST_LAUNCH" />

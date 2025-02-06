@@ -5,7 +5,6 @@ import androidx.compose.ui.util.fastMap
 import com.programmersbox.gsonutils.fromJson
 import com.programmersbox.gsonutils.getJsonApi
 import com.programmersbox.models.*
-import io.reactivex.Single
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -18,35 +17,15 @@ object Tsumino : ApiService {
     override val canScroll: Boolean get() = true
     override val serviceName: String get() = "TSUMINO"
 
-    override fun searchList(searchText: CharSequence, page: Int, list: List<ItemModel>): Single<List<ItemModel>> = try {
-        if (searchText.isBlank()) throw Exception("No search necessary")
-        Single.create { emitter ->
-            val body = FormBody.Builder()
-                .add("PageNumber", page.toString())
-                .add("Text", searchText.toString())
-                .add("Sort", "Newest")
-                .add("List", "0")
-                .add("Length", "0")
-                .build()
-            getJsonApiPost<Base>("$baseUrl/Search/Operate/", body)
-                ?.data
-                ?.fastMap {
-                    ItemModel(
-                        title = it.entry?.title.toString(),
-                        description = "${it.entry?.duration}",
-                        url = it.entry?.id.toString(),
-                        imageUrl = it.entry?.thumbnailUrl ?: it.entry?.thumbnailTemplateUrl ?: "",
-                        source = Tsumino
-                    )
-                }.orEmpty()
-                .let(emitter::onSuccess)
-        }
-    } catch (e: Exception) {
-        super.searchList(searchText, page, list)
-    }
-
-    override fun getRecent(page: Int): Single<List<ItemModel>> = Single.create { emitter ->
-        getJsonApi<Base>("$baseUrl/Search/Operate/?PageNumber=$page&Sort=Newest")
+    override suspend fun search(searchText: CharSequence, page: Int, list: List<ItemModel>): List<ItemModel> {
+        val body = FormBody.Builder()
+            .add("PageNumber", page.toString())
+            .add("Text", searchText.toString())
+            .add("Sort", "Newest")
+            .add("List", "0")
+            .add("Length", "0")
+            .build()
+        return getJsonApiPost<Base>("$baseUrl/Search/Operate/", body)
             ?.data
             ?.fastMap {
                 ItemModel(
@@ -57,11 +36,10 @@ object Tsumino : ApiService {
                     source = Tsumino
                 )
             }.orEmpty()
-            .let(emitter::onSuccess)
     }
 
-    override fun getList(page: Int): Single<List<ItemModel>> = Single.create { emitter ->
-        getJsonApi<Base>("$baseUrl/Search/Operate/?PageNumber=$page&Sort=Popularity")
+    override suspend fun recent(page: Int): List<ItemModel> {
+        return getJsonApi<Base>("$baseUrl/Search/Operate/?PageNumber=$page&Sort=Newest")
             ?.data
             ?.fastMap {
                 ItemModel(
@@ -72,39 +50,49 @@ object Tsumino : ApiService {
                     source = Tsumino
                 )
             }.orEmpty()
-            .let(emitter::onSuccess)
     }
 
-    override fun getItemInfo(model: ItemModel): Single<InfoModel> = Single.create {
+    override suspend fun allList(page: Int): List<ItemModel> {
+        return getJsonApi<Base>("$baseUrl/Search/Operate/?PageNumber=$page&Sort=Popularity")
+            ?.data
+            ?.fastMap {
+                ItemModel(
+                    title = it.entry?.title.toString(),
+                    description = "${it.entry?.duration}",
+                    url = it.entry?.id.toString(),
+                    imageUrl = it.entry?.thumbnailUrl ?: it.entry?.thumbnailTemplateUrl ?: "",
+                    source = Tsumino
+                )
+            }.orEmpty()
+    }
+
+    override suspend fun itemInfo(model: ItemModel): InfoModel {
         val doc = Jsoup.connect("$baseUrl/entry/${model.url}").get()
-        it.onSuccess(
-            InfoModel(
-                title = model.title,
-                description = getDesc(doc),
-                url = "$baseUrl/entry/${model.url}",
-                imageUrl = model.imageUrl,
-                chapters = listOf(
-                    ChapterModel(
-                        url = model.url,
-                        name = doc.select("#Pages").text(),
-                        uploaded = "",
-                        sourceUrl = model.url,
-                        source = Tsumino
-                    )
-                ),
-                genres = doc.select("#Tag a").eachText(),
-                alternativeNames = emptyList(),
-                source = Tsumino
-            )
+        return InfoModel(
+            title = model.title,
+            description = getDesc(doc),
+            url = "$baseUrl/entry/${model.url}",
+            imageUrl = model.imageUrl,
+            chapters = listOf(
+                ChapterModel(
+                    url = model.url,
+                    name = doc.select("#Pages").text(),
+                    uploaded = "",
+                    sourceUrl = model.url,
+                    source = Tsumino
+                )
+            ),
+            genres = doc.select("#Tag a").eachText(),
+            alternativeNames = emptyList(),
+            source = Tsumino
         )
     }
 
-    override fun getChapterInfo(chapterModel: ChapterModel): Single<List<Storage>> = Single.create { emitter ->
-        chapterModel.name.toIntOrNull()?.let { 1..it }
+    override suspend fun chapterInfo(chapterModel: ChapterModel): List<Storage> {
+        return chapterModel.name.toIntOrNull()?.let { 1..it }
             ?.map { "https://content.tsumino.com/thumbs/${chapterModel.url}/$it" }
             .orEmpty()
             .fastMap { Storage(link = it, source = chapterModel.url, quality = "Good", sub = "Yes") }
-            .let(emitter::onSuccess)
     }
 
     private fun getDesc(document: Document): String {

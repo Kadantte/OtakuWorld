@@ -3,6 +3,7 @@ package com.programmersbox.animeworld
 import android.annotation.SuppressLint
 import android.content.ContentResolver
 import android.content.Context
+import android.content.Intent
 import android.database.ContentObserver
 import android.database.Cursor
 import android.net.Uri
@@ -15,19 +16,32 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.AnchoredDraggableState
+import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.FractionalThreshold
-import androidx.compose.material.rememberSwipeableState
-import androidx.compose.material.swipeable
 import androidx.compose.material3.Surface
 import androidx.compose.material3.contentColorFor
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -36,14 +50,20 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.navigation.NavController
+import com.programmersbox.animeworld.videoplayer.VideoPlayerActivity
+import com.programmersbox.animeworld.videoplayer.VideoViewModel
 import com.programmersbox.helpfulutils.sharedPrefNotNullDelegate
-import com.programmersbox.uiviews.utils.dataStore
-import io.reactivex.subjects.PublishSubject
+import com.programmersbox.uiviews.datastore.DataStoreHandler
+import com.programmersbox.uiviews.datastore.dataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.math.roundToInt
 
 var Context.folderLocation: String by sharedPrefNotNullDelegate(
@@ -52,6 +72,51 @@ var Context.folderLocation: String by sharedPrefNotNullDelegate(
 
 val IGNORE_SSL = booleanPreferencesKey("ignore_ssl")
 val Context.ignoreSsl get() = dataStore.data.map { it[IGNORE_SSL] ?: true }
+
+val USER_NEW_PLAYER = booleanPreferencesKey("useNewPlayer")
+val Context.useNewPlayerFlow get() = dataStore.data.map { it[USER_NEW_PLAYER] ?: true }
+
+class AnimeDataStoreHandling(context: Context) {
+    val useNewPlayer = DataStoreHandler(
+        key = booleanPreferencesKey("useNewPlayer"),
+        defaultValue = true,
+        context = context
+    )
+
+    val ignoreSsl = DataStoreHandler(
+        key = booleanPreferencesKey("ignore_ssl"),
+        defaultValue = true,
+        context = context
+    )
+}
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+fun Context.navigateToVideoPlayer(
+    navController: NavController,
+    assetFileStringUri: String?,
+    videoName: String?,
+    downloadOrStream: Boolean,
+    referer: String = "",
+) {
+    if (runBlocking { useNewPlayerFlow.first() }) {
+        VideoViewModel.navigateToVideoPlayer(
+            navController,
+            assetFileStringUri.orEmpty(),
+            videoName.orEmpty(),
+            downloadOrStream,
+            referer
+        )
+    } else {
+        startActivity(
+            Intent(this, VideoPlayerActivity::class.java).apply {
+                putExtra("showPath", assetFileStringUri)
+                putExtra("showName", videoName)
+                putExtra("downloadOrStream", downloadOrStream)
+                data = assetFileStringUri?.toUri()
+            }
+        )
+    }
+}
 
 data class VideoContent(
     var videoId: Long = 0,
@@ -148,7 +213,7 @@ class VideoGet private constructor(private val videoContex: Context) {
 
     private fun ContentResolver.registerObserver(
         uri: Uri,
-        observer: (selfChange: Boolean) -> Unit
+        observer: (selfChange: Boolean) -> Unit,
     ): ContentObserver {
         val contentObserver = object : ContentObserver(Handler()) {
             override fun onChange(selfChange: Boolean) {
@@ -166,14 +231,11 @@ class VideoGet private constructor(private val videoContex: Context) {
         contentObserver?.let { videoContex.contentResolver.unregisterContentObserver(it) }
     }
 
-    val videos = PublishSubject.create<List<VideoContent>>()
-
     val videos2 = MutableStateFlow<List<VideoContent>>(emptyList())
 
     fun loadVideos(scope: CoroutineScope, contentLocation: Uri) {
         scope.launch {
             val imageList = getAllVideoContent(contentLocation)
-            videos.onNext(imageList)
             videos2.tryEmit(imageList)
 
             if (contentObserver == null) {
@@ -261,7 +323,7 @@ class VideoGet private constructor(private val videoContex: Context) {
 
 enum class SlideState { Start, End }
 
-@ExperimentalMaterialApi
+@OptIn(ExperimentalFoundationApi::class)
 @ExperimentalAnimationApi
 @Composable
 fun SlideTo(
@@ -276,14 +338,26 @@ fun SlideTo(
     endIcon: @Composable () -> Unit,
     widthAnimationMillis: Int = 300,
     elevation: Dp = 0.dp,
-    content: @Composable (Float) -> Unit = {}
+    content: @Composable (Float) -> Unit = {},
 ) {
 
     val iconSize = slideHeight - 10.dp
 
     val slideDistance = with(LocalDensity.current) { (slideWidth - iconSize - 15.dp).toPx() }
 
-    val swipeableState = rememberSwipeableState(initialValue = SlideState.Start)
+    val swipeableState = remember {
+        AnchoredDraggableState(
+            initialValue = SlideState.Start,
+            anchors = DraggableAnchors {
+                SlideState.Start at 0f
+                SlideState.End at slideDistance
+            },
+            positionalThreshold = { distance: Float -> distance * 0.5f },
+            velocityThreshold = { 125f },
+            snapAnimationSpec = spring<Float>(),
+            decayAnimationSpec = exponentialDecay<Float>()
+        )
+    }
 
     var flag by remember { mutableStateOf(iconSize) }
 
@@ -292,16 +366,16 @@ fun SlideTo(
     }
 
     val contentAlpha by animateFloatAsState(
-        targetValue = if (swipeableState.offset.value != 0f && swipeableState.offset.value > 0f)
-            (1 - swipeableState.progress.fraction)
-        else 1f
+        targetValue = if (swipeableState.offset != 0f && swipeableState.offset > 0f)
+            (1 - swipeableState.progress)
+        else 1f, label = ""
     )
 
-    val iconSizeAnimation by animateDpAsState(targetValue = flag, tween(250))
+    val iconSizeAnimation by animateDpAsState(targetValue = flag, tween(250), label = "")
 
     val width by animateDpAsState(
         targetValue = if (iconSizeAnimation == 0.dp) slideHeight else slideWidth,
-        tween(widthAnimationMillis)
+        tween(widthAnimationMillis), label = ""
     )
 
     AnimatedVisibility(
@@ -321,7 +395,7 @@ fun SlideTo(
                 tonalElevation = elevation
             ) {
                 Box(
-                    modifier = Modifier.padding(5.dp),
+                    modifier = Modifier.padding(4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
@@ -329,7 +403,7 @@ fun SlideTo(
                             .fillMaxSize()
                             .alpha(contentAlpha),
                         contentAlignment = Alignment.Center
-                    ) { content(swipeableState.offset.value) }
+                    ) { content(swipeableState.offset) }
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.CenterStart
@@ -340,17 +414,12 @@ fun SlideTo(
                             modifier = Modifier
                                 .size(iconSizeAnimation)
                                 .padding(navigationIconPadding)
-                                .swipeable(
+                                .anchoredDraggable(
                                     state = swipeableState,
-                                    anchors = mapOf(
-                                        0f to SlideState.Start,
-                                        slideDistance to SlideState.End
-                                    ),
-                                    thresholds = { _, _ -> FractionalThreshold(0.9f) },
                                     orientation = Orientation.Horizontal
                                 )
-                                .offset { IntOffset(swipeableState.offset.value.roundToInt(), 0) },
-                        ) { navigationIcon(swipeableState.offset.value / slideWidth.value * 90f) }
+                                .offset { IntOffset(swipeableState.offset.roundToInt(), 0) },
+                        ) { navigationIcon(swipeableState.offset / slideWidth.value * 90f) }
                     }
                     AnimatedVisibility(
                         visible = width == slideHeight,
@@ -370,5 +439,29 @@ fun SlideTo(
                 }
             }
         }
+    }
+}
+
+enum class Qualities(var value: Int) {
+    Unknown(0),
+    P360(-2), // 360p
+    P480(-1), // 480p
+    P720(1), // 720p
+    P1080(2), // 1080p
+    P1440(3), // 1440p
+    P2160(4) // 4k or 2160p
+}
+
+fun getQualityFromName(qualityName: String): Qualities {
+    return when (qualityName.replace("p", "").replace("P", "")) {
+        "360" -> Qualities.P360
+        "480" -> Qualities.P480
+        "720" -> Qualities.P720
+        "1080" -> Qualities.P1080
+        "1440" -> Qualities.P1440
+        "2160" -> Qualities.P2160
+        "4k" -> Qualities.P2160
+        "4K" -> Qualities.P2160
+        else -> Qualities.Unknown
     }
 }

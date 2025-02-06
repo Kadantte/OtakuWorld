@@ -1,0 +1,271 @@
+package com.programmersbox.uiviews.presentation.details
+
+import android.graphics.Bitmap
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
+import com.kmpalette.palette.graphics.Palette
+import com.programmersbox.extensionloader.SourceRepository
+import com.programmersbox.favoritesdatabase.ChapterWatched
+import com.programmersbox.favoritesdatabase.DbModel
+import com.programmersbox.favoritesdatabase.toDbModel
+import com.programmersbox.gsonutils.fromJson
+import com.programmersbox.models.ApiService
+import com.programmersbox.models.ChapterModel
+import com.programmersbox.models.InfoModel
+import com.programmersbox.models.ItemModel
+import com.programmersbox.sharedutils.TranslateItems
+import com.programmersbox.uiviews.GenericInfo
+import com.programmersbox.uiviews.presentation.Screen
+import com.programmersbox.uiviews.repository.FavoritesRepository
+import com.programmersbox.uiviews.utils.ApiServiceDeserializer
+import com.programmersbox.uiviews.utils.Cached
+import com.programmersbox.uiviews.utils.ComposableUtils
+import com.programmersbox.uiviews.utils.blurhash.BlurHashDao
+import com.programmersbox.uiviews.utils.blurhash.BlurHashItem
+import com.programmersbox.uiviews.utils.dispatchIo
+import com.programmersbox.uiviews.utils.fireListener
+import com.programmersbox.uiviews.utils.recordFirebaseException
+import com.vanniktech.blurhash.BlurHash
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+
+class DetailsViewModel(
+    handle: SavedStateHandle,
+    genericInfo: GenericInfo,
+    private val blurHashDao: BlurHashDao,
+    sourceRepository: SourceRepository,
+    private val favoritesRepository: FavoritesRepository,
+) : ViewModel() {
+
+    private val details: Screen.DetailsScreen.Details? = handle.toRoute()
+
+    val itemModel: ItemModel? = details?.toItemModel(sourceRepository, genericInfo)
+        ?: handle.get<String>("model")
+            ?.fromJson<ItemModel>(ApiService::class.java to ApiServiceDeserializer(genericInfo))
+
+    private var detailState by mutableStateOf<DetailState>(DetailState.Loading)
+
+    var info: InfoModel? by mutableStateOf(null)
+
+    var palette by mutableStateOf<Palette?>(null)
+
+    private var addRemoveFavoriteJob: Job? = null
+
+    private val itemListener = fireListener("favorite")
+    private val dbModelListener = fireListener("update")
+    private val chapterListener = fireListener("chapter")
+
+    var favoriteListener by mutableStateOf(false)
+    var chapters: List<ChapterWatched> by mutableStateOf(emptyList())
+
+    var description: String by mutableStateOf("")
+
+    var dbModel by mutableStateOf<DbModel?>(null)
+
+    var imageBitmap: Bitmap? by mutableStateOf(null)
+    var blurHash by mutableStateOf<BitmapPainter?>(null)
+    private var blurHashItem: BlurHashItem? = null
+
+    val currentState by derivedStateOf {
+        (detailState as? DetailState.Success)?.let {
+            it.copy(action = if (favoriteListener) DetailFavoriteAction.Remove(it.info) else DetailFavoriteAction.Add(it.info))
+        } ?: detailState
+    }
+
+    init {
+        itemModel?.url?.let { url ->
+            Cached.cache[url]?.let { flow { emit(Result.success(it)) } } ?: itemModel.toInfoModel()
+        }
+            ?.dispatchIo()
+            ?.catch {
+                recordFirebaseException(it)
+                it.printStackTrace()
+                emit(Result.failure(it))
+                detailState = DetailState.Error(it)
+            }
+            ?.filter { it.isSuccess }
+            ?.map { it.getOrThrow() }
+            ?.onEach { item ->
+                info = item
+                detailState = DetailState.Success(
+                    info = item,
+                    action = DetailFavoriteAction.Add(item)
+                )
+                description = item.description.ifEmpty { "No Description Found" }
+                setup(item)
+                Cached.cache[item.url] = item
+            }
+            ?.launchIn(viewModelScope)
+
+        blurHashDao
+            .getHash(itemModel?.imageUrl)
+            .onEach { blurHashItem = it }
+            .filterNotNull()
+            .mapNotNull {
+                BlurHash.decode(
+                    it.blurHash,
+                    width = ComposableUtils.IMAGE_WIDTH_PX,
+                    height = ComposableUtils.IMAGE_HEIGHT_PX
+                )?.asImageBitmap()
+            }
+            .onEach { blurHash = BitmapPainter(it) }
+            .onEach { if (palette == null) palette = Palette.from(it).generate() }
+            .dispatchIo()
+            .launchIn(viewModelScope)
+
+        combine(
+            snapshotFlow { favoriteListener },
+            snapshotFlow { imageBitmap },
+            blurHashDao.getHash(itemModel?.imageUrl),
+            snapshotFlow { itemModel?.imageUrl }
+        ) { f, i, b, image ->
+            BlurAdd(
+                bitmap = i,
+                isFavorite = f,
+                blurHashItem = b,
+                imageUrl = image
+            )
+        }
+            .dispatchIo()
+            .onEach {
+                if (it.blurHashItem == null && it.bitmap != null && it.isFavorite && it.imageUrl != null) {
+                    blurHashDao.insertHash(
+                        BlurHashItem(
+                            it.imageUrl,
+                            BlurHash.encode(it.bitmap, 4, 3)
+                        )
+                    )
+                } else if (it.blurHashItem != null && !it.isFavorite) {
+                    blurHashDao.deleteHash(it.blurHashItem)
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    class BlurAdd(
+        val bitmap: Bitmap?,
+        val isFavorite: Boolean,
+        val blurHashItem: BlurHashItem?,
+        val imageUrl: String?,
+    )
+
+    suspend fun toggleNotify() {
+        dbModel
+            ?.let { it.copy(shouldCheckForUpdate = !it.shouldCheckForUpdate) }
+            ?.let { favoritesRepository.toggleNotify(it) }
+    }
+
+    private val englishTranslator = TranslateItems()
+
+    fun translateDescription(progress: MutableState<Boolean>) {
+        englishTranslator.translateDescription(
+            textToTranslate = info!!.description,
+            progress = { progress.value = it },
+            translatedText = { description = it }
+        )
+    }
+
+    private fun setup(info: InfoModel) {
+        favoritesRepository
+            .isFavorite(
+                url = info.url,
+                fireListenerClosable = itemListener,
+            )
+            .dispatchIo()
+            .onEach { favoriteListener = it }
+            .launchIn(viewModelScope)
+
+        favoritesRepository
+            .getChapters(
+                url = info.url,
+                fireListenerClosable = chapterListener,
+            )
+            .onEach { chapters = it }
+            .launchIn(viewModelScope)
+
+        favoritesRepository
+            .getModel(
+                url = info.url,
+                fireListenerClosable = dbModelListener,
+            )
+            .onEach { dbModel = it }
+            .launchIn(viewModelScope)
+    }
+
+    fun markAs(c: ChapterModel, b: Boolean) {
+        val chapter = ChapterWatched(
+            url = c.url,
+            name = c.name,
+            favoriteUrl = info!!.url
+        )
+
+        viewModelScope.launch {
+            if (b) {
+                favoritesRepository.addWatched(chapter)
+            } else {
+                favoritesRepository.removeWatched(chapter)
+            }
+        }
+    }
+
+    fun favoriteAction(action: DetailFavoriteAction) {
+        when (action) {
+            is DetailFavoriteAction.Add -> {
+                val db = action.info.toDbModel(action.info.chapters.size)
+                addRemoveFavoriteJob?.cancel()
+                addRemoveFavoriteJob = viewModelScope.launch(Dispatchers.IO) {
+                    favoritesRepository.addFavorite(db)
+                }
+            }
+
+            is DetailFavoriteAction.Remove -> {
+                val db = action.info.toDbModel(action.info.chapters.size)
+                addRemoveFavoriteJob?.cancel()
+                addRemoveFavoriteJob = viewModelScope.launch(Dispatchers.IO) {
+                    favoritesRepository.removeFavorite(db)
+                }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        englishTranslator.clear()
+    }
+}
+
+sealed class DetailState {
+    object Loading : DetailState()
+
+    data class Success(
+        val info: InfoModel,
+        val action: DetailFavoriteAction,
+    ) : DetailState()
+
+    data class Error(val e: Throwable) : DetailState()
+}
+
+sealed class DetailFavoriteAction {
+    data class Add(val info: InfoModel) : DetailFavoriteAction()
+    data class Remove(val info: InfoModel) : DetailFavoriteAction()
+}

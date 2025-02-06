@@ -7,14 +7,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
-import android.net.wifi.WifiManager
 import android.os.Environment
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import androidx.core.view.isVisible
+import androidx.media3.common.MimeTypes
 import androidx.mediarouter.app.MediaRouteButton
-import com.google.android.exoplayer2.util.MimeTypes
 import com.google.android.gms.cast.*
 import com.google.android.gms.cast.framework.*
 import com.google.android.gms.cast.framework.CastOptions
@@ -25,18 +24,16 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.common.images.WebImage
 import com.programmersbox.animeworld.R
+import com.programmersbox.helpfulutils.connectivityManager
 import io.github.dkbai.tinyhttpd.nanohttpd.webserver.SimpleWebServer
-import io.reactivex.Observable
-import io.reactivex.subjects.BehaviorSubject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.lang.ref.WeakReference
-import java.net.InetAddress
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 typealias SessionCallback = (Int) -> Unit
 typealias SimpleCallback = () -> Unit
@@ -102,13 +99,13 @@ class CastHelper {
     private var onNeedToShowIntroductoryOverlay: SimpleCallback? = null
     private var onSessionConnected: () -> Unit = {}
 
-    private val sessionConnected = BehaviorSubject.createDefault(false)
+    private val sessionConnected = MutableStateFlow(false)
 
-    fun sessionConnected(): Observable<Boolean> = sessionConnected
+    fun sessionConnected(): Flow<Boolean> = sessionConnected
 
-    private val sessionStatus = BehaviorSubject.createDefault(false)
+    private val sessionStatus = MutableStateFlow(false)
 
-    fun sessionStatus(): Observable<Boolean> = sessionStatus
+    fun sessionStatus(): Flow<Boolean> = sessionStatus
 
     fun isCastActive() = try {
         mCastContext.castState == CastState.CONNECTED
@@ -169,7 +166,7 @@ class CastHelper {
     }
 
     private val castListener: (Int) -> Unit = { state ->
-        sessionConnected.onNext(state != CastState.NO_DEVICES_AVAILABLE)
+        sessionConnected.tryEmit(state != CastState.NO_DEVICES_AVAILABLE)
         if (state != CastState.NO_DEVICES_AVAILABLE) this.onNeedToShowIntroductoryOverlay?.invoke()
         if (state == CastState.NOT_CONNECTED) {
             /** When casting is disconnected we post updateLastModel */
@@ -180,7 +177,7 @@ class CastHelper {
             onSessionConnected()
             //sessionConnected.onNext(true)
         }
-        sessionStatus.onNext(state == CastState.CONNECTED)
+        sessionStatus.tryEmit(state == CastState.CONNECTED)
     }
 
     /** Separate UI logic to avoid memory, use context from view */
@@ -381,18 +378,9 @@ class CastHelper {
 class Utils {
     companion object {
         fun findIPAddress(context: Context): String? {
-            val wifiManager =
-                context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val wifiManager = context.connectivityManager
             try {
-                return if (wifiManager.connectionInfo != null) {
-                    val wifiInfo = wifiManager.connectionInfo
-                    InetAddress.getByAddress(
-                        ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN)
-                            .putInt(wifiInfo.ipAddress)
-                            .array()
-                    ).hostAddress
-                } else
-                    null
+                return wifiManager.getLinkProperties(wifiManager.activeNetwork)?.linkAddresses?.get(1)?.address?.hostAddress
             } catch (e: Exception) {
                 Log.e(Utils::class.java.name, "Error finding IpAddress: ${e.message}", e)
             }

@@ -42,6 +42,8 @@
     <string name="lastPage">Reached Last Page</string>
     <string name="goBack">Go Back</string>
 
+    <string name="swipeChapter">Swipe left or right and up to go to the previous or next chapter</string>
+
     <string name="searchFavorites">Search Favorites</string>
 
     <string name="notNow">Not Now</string>
@@ -56,6 +58,7 @@
     <string name="logIn">Log in</string>
     <string name="logOut">Log Out?</string>
     <string name="yes">Yes</string>
+    <string name="confirm">Confirm</string>
     <string name="no">No</string>
     <string name="done">Done</string>
     <string name="cancel">Cancel</string>
@@ -85,6 +88,8 @@
     <string name="choose_a_theme">Choose a Theme</string>
     <string name="theme_choice_title">Theme</string>
     <string name="battery_alert_percentage">Battery Alert Percentage</string>
+    <string name="list_or_pager_title">View Type</string>
+    <string name="list_or_pager_description">Choose between a flowing view or a single page view.</string>
     <string name="press_to_check_for_updates">Press to Check for Updates</string>
     <string name="update_available">Update Available</string>
     <string name="currentSource">Current Source: %s</string>
@@ -142,6 +147,7 @@
     <string name="add_a_favorite">Add a Favorite</string>
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="global_search">Global Search</string>
+    <string name="more">More</string>
     <string name="search">Search</string>
     <string name="global_search_by_name">Global Search by Name</string>
     <string name="are_you_sure_delete_notifications">Are you sure you want to delete all notifications?</string>
@@ -177,4 +183,35 @@
 
     <string name="viewTranslationModels">View Translation Models</string>
     <string name="chooseModelToDelete">Choose a Model to Delete</string>
+    <string name="add_to_list">Add to List</string>
+    <string name="added_to_list">Added to %s</string>
+    <string name="already_in_list">Already in %s</string>
+    <string name="are_you_sure_delete_list">Are you sure? There is no recovering.\nPlease type in the name of the list to delete.</string>
+    <string name="delete_list_title">Delete List</string>
+    <string name="update_list_name_title">Update List Name</string>
+    <string name="list_name">List Name</string>
+    <string name="remove_items">Remove Items</string>
+    <string name="custom_lists_title">Lists</string>
+    <string name="choose_list_title">Choose List</string>
+    <string name="create_new_list_option">Create New</string>
+    <string name="create_new_list">Create New List</string>
+    <string name="custom_list_updated_at">Updated at %s</string>
+    <string name="importing_import_list">Importing!</string>
+    <string name="import_import_list">Import</string>
+    <string name="export_list">Export</string>
+    <string name="edit_import_list">Edit</string>
+    <string name="additional_settings">Additional Settings</string>
+    <string name="notification_settings">Notification Settings</string>
+    <string name="notifications">Notifications</string>
+    <string name="extensions">Extensions</string>
+    <string name="view_extensions">View Extensions</string>
+    <string name="installed">Installed</string>
+    <string name="amoled_mode">AMOLED Mode</string>
+    <string name="import_favorites">Import Favorites</string>
+    <string name="export_favorites">Export Favorites</string>
+    <string name="more_settings">More Settings</string>
+    <string name="for_later">For Later</string>
+    <string name="add_to_for_later_list">Add to For Later list</string>
+    <string name="show_download_button">Show Download Button</string>
+    <string name="show_list_detail_pane_for_lists">Show List Detail Pane for Lists</string>
 </resources>

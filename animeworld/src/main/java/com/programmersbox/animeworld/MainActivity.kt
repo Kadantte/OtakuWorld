@@ -1,53 +1,50 @@
 package com.programmersbox.animeworld
 
-import android.net.Uri
-import com.programmersbox.anime_sources.Sources
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.viewinterop.AndroidViewBinding
+import androidx.lifecycle.lifecycleScope
 import com.programmersbox.animeworld.cast.CastHelper
-import com.programmersbox.models.sourcePublish
+import com.programmersbox.animeworld.databinding.MiniControllerBinding
+import com.programmersbox.animeworld.videos.ViewVideoViewModel
 import com.programmersbox.uiviews.BaseMainActivity
-import com.programmersbox.uiviews.SettingsDsl
-import com.programmersbox.uiviews.utils.currentService
+import com.programmersbox.uiviews.datastore.updatePref
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import org.koin.android.ext.android.inject
 
 class MainActivity : BaseMainActivity() {
 
+    val animeDataStoreHandling by inject<AnimeDataStoreHandling>()
+
     companion object {
-        const val VIEW_DOWNLOADS = "animeworld://view_downloads"
-        const val VIEW_VIDEOS = "animeworld://view_videos"
-        lateinit var activity: MainActivity
+        const val VIEW_VIDEOS = "animeworld://${ViewVideoViewModel.VideoViewerRoute}"
         val cast: CastHelper = CastHelper()
     }
 
     override fun onCreate() {
-
-        activity = this
-
         try {
             cast.init(this)
         } catch (e: Exception) {
 
         }
 
-        when (intent.data) {
-            Uri.parse(VIEW_DOWNLOADS) -> openDownloads()
-            Uri.parse(VIEW_VIDEOS) -> openVideos()
-        }
+        animeDataStoreHandling
+            .useNewPlayer
+            .asFlow()
+            .onEach { updatePref(USER_NEW_PLAYER, it) }
+            .launchIn(lifecycleScope)
 
-        if (currentService == null) {
-            val s = Sources.values().filterNot(Sources::notWorking).random()
-            sourcePublish.onNext(s)
-            currentService = s.serviceName
-        }
-
+        animeDataStoreHandling
+            .ignoreSsl
+            .asFlow()
+            .onEach { updatePref(IGNORE_SSL, it) }
+            .launchIn(lifecycleScope)
     }
 
-    private fun openDownloads() {
-        goToScreen(Screen.SETTINGS)
-        currentNavController?.value?.navigate(Uri.parse(VIEW_DOWNLOADS), SettingsDsl.customAnimationOptions)
-    }
-
-    private fun openVideos() {
-        goToScreen(Screen.SETTINGS)
-        currentNavController?.value?.navigate(Uri.parse(VIEW_VIDEOS), SettingsDsl.customAnimationOptions)
+    @Composable
+    override fun BottomBarAdditions() {
+        //TODO: get it working with the minicontroller fragment in play
+        if (cast.isCastActive()) AndroidViewBinding(MiniControllerBinding::inflate)
     }
 
 }

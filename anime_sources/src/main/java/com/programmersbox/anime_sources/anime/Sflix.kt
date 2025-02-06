@@ -7,19 +7,18 @@ import android.webkit.*
 import androidx.compose.ui.util.fastMap
 import com.programmersbox.anime_sources.ShowApi
 import com.programmersbox.anime_sources.Sources
+import com.programmersbox.anime_sources.toJsoup
 import com.programmersbox.anime_sources.utilities.*
 import com.programmersbox.gsonutils.fromJson
 import com.programmersbox.models.ChapterModel
 import com.programmersbox.models.InfoModel
 import com.programmersbox.models.ItemModel
 import com.programmersbox.models.Storage
-import io.reactivex.Single
 import kotlinx.coroutines.*
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.net.URI
@@ -43,8 +42,8 @@ abstract class Sflix(baseUrl: String, private val servName: String) : ShowApi(
     override val serviceName: String get() = servName
     override val canDownload: Boolean get() = false
 
-    override fun getRecent(doc: Document): Single<List<ItemModel>> = Single.create { s ->
-        doc
+    override suspend fun recent(page: Int): List<ItemModel> {
+        return recentPath(page)
             .select("section.block_area.block_area_home.section-id-02")
             .select("div.film-poster")
             .fastMap {
@@ -61,16 +60,15 @@ abstract class Sflix(baseUrl: String, private val servName: String) : ShowApi(
                     source = sourceName
                 )
             }
-            .let(s::onSuccess)
     }
 
-    override fun getList(doc: Document): Single<List<ItemModel>> = Single.create { s ->
+    override suspend fun allList(page: Int): List<ItemModel> {
         val map = listOf(
             "div#trending-movies",
             "div#trending-tv",
         )
-        val items = map.flatMap { key ->
-            doc
+        return map.flatMap { key ->
+            all(page)
                 .select(key)
                 .select("div.film-poster")
                 .fastMap {
@@ -88,44 +86,39 @@ abstract class Sflix(baseUrl: String, private val servName: String) : ShowApi(
                     )
                 }
         }
-        s.onSuccess(items)
     }
 
-    override fun searchList(searchText: CharSequence, page: Int, list: List<ItemModel>): Single<List<ItemModel>> =
-        Single.create<List<ItemModel>> { s ->
-            Jsoup.connect("$baseUrl/search/${searchText.toString().replace(" ", "-")}").get()
-                .select("div.flw-item")
-                .fastMap {
-                    val title = it.select("h2.film-name").text()
-                    val href = fixUrl(it.select("a").attr("href"))
-                    val year = it.select("span.fdi-item").text()
-                    val image = it.select("img").attr("data-src")
-                    ItemModel(
-                        title = title,
-                        description = year,
-                        imageUrl = image,
-                        url = href,
-                        source = sourceName
-                    )
-                }
-                .let(s::onSuccess)
-        }
-            .onErrorResumeNext(super.searchList(searchText, page, list))
+    override suspend fun search(searchText: CharSequence, page: Int, list: List<ItemModel>): List<ItemModel> {
+        return Jsoup.connect("$baseUrl/search/${searchText.toString().replace(" ", "-")}").get()
+            .select("div.flw-item")
+            .fastMap {
+                val title = it.select("h2.film-name").text()
+                val href = fixUrl(it.select("a").attr("href"))
+                val year = it.select("span.fdi-item").text()
+                val image = it.select("img").attr("data-src")
+                ItemModel(
+                    title = title,
+                    description = year,
+                    imageUrl = image,
+                    url = href,
+                    source = sourceName
+                )
+            }
+    }
 
-    override fun getItemInfo(source: ItemModel, doc: Document): Single<InfoModel> = Single.create { emitter ->
-
-        val details = doc.select("div.detail_page-watch")
+    override suspend fun itemInfo(model: ItemModel): InfoModel {
+        val details = model.url.toJsoup().select("div.detail_page-watch")
         val img = details.select("img.film-poster-img")
         val posterUrl = img.attr("src")
         val title = img.attr("title")
 
         val plot = details.select("div.description").text().replace("Overview:", "").trim()
 
-        val isMovie = source.url.contains("/movie/")
+        val isMovie = model.url.contains("/movie/")
 
         val idRegex = Regex(""".*-(\d+)""")
         val dataId = details.attr("data-id")
-        val id = if (dataId.isNullOrEmpty()) idRegex.find(source.url)?.groupValues?.get(1).orEmpty() else dataId
+        val id = if (dataId.isNullOrEmpty()) idRegex.find(model.url)?.groupValues?.get(1).orEmpty() else dataId
 
         val episodes = if (isMovie) {
             val episodesUrl = "$baseUrl/ajax/movie/episodes/$id"
@@ -143,7 +136,7 @@ abstract class Sflix(baseUrl: String, private val servName: String) : ShowApi(
                     title,
                     webViewUrl,
                     "",
-                    source.url,
+                    model.url,
                     this@Sflix.sourceName
                 )
             )
@@ -165,9 +158,9 @@ abstract class Sflix(baseUrl: String, private val servName: String) : ShowApi(
 
                             ChapterModel(
                                 "S${season + 1}: $episodeTitle",
-                                "${source.url}:::$episodeData",
+                                "${model.url}:::$episodeData",
                                 "",
-                                source.url,
+                                model.url,
                                 this@Sflix.sourceName
                             )
                         }
@@ -175,32 +168,29 @@ abstract class Sflix(baseUrl: String, private val servName: String) : ShowApi(
             }
         }
 
-        InfoModel(
+        return InfoModel(
             source = this@Sflix.sourceName,
             title = title,
-            url = source.url,
+            url = model.url,
             alternativeNames = emptyList(),
             description = plot,
             imageUrl = posterUrl,
             genres = emptyList(),
             chapters = episodes.reversed()
         )
-            .let(emitter::onSuccess)
     }
 
-    override fun getSourceByUrl(url: String): Single<ItemModel> = Single.create { emitter ->
-        ItemModel(
+    override suspend fun sourceByUrl(url: String): ItemModel {
+        return ItemModel(
             title = "",
             description = "",
             imageUrl = "",
             url = url,
             source = this
-        ).let(emitter::onSuccess)
+        )
     }
 
-    override fun getChapterInfo(chapterModel: ChapterModel): Single<List<Storage>> = Single.create { emitter ->
-        //println(chapterModel.url.toJsoup())
-
+    override suspend fun chapterInfo(chapterModel: ChapterModel): List<Storage> {
         // To transfer url:::id
         val split = chapterModel.url.split(":::")
         // Only used for tv series
@@ -233,11 +223,9 @@ abstract class Sflix(baseUrl: String, private val servName: String) : ShowApi(
             mapped?.sourcesBackup to "source backup"
         )
 
-        val d = list.flatMap { subList ->
+        return list.flatMap { subList ->
             subList.first?.fastMap { it?.toExtractorLink(chapterModel, subList.second).orEmpty() }.orEmpty()
         }.flatten()
-
-        emitter.onSuccess(d)
     }
 
     private fun SourcesDope.toExtractorLink(caller: ChapterModel, name: String): List<Storage>? {

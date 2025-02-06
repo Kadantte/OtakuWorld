@@ -3,7 +3,9 @@ package com.programmersbox.favoritesdatabase
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
+@Serializable
 @Entity(tableName = "FavoriteItem")
 data class DbModel(
     @ColumnInfo(name = "title")
@@ -18,7 +20,9 @@ data class DbModel(
     @ColumnInfo(name = "sources")
     val source: String,
     @ColumnInfo(name = "numChapters", defaultValue = "0")
-    var numChapters: Int = 0
+    var numChapters: Int = 0,
+    @ColumnInfo(name = "shouldCheckForUpdate", defaultValue = "true")
+    val shouldCheckForUpdate: Boolean = true,
 )
 
 @Entity(tableName = "ChapterWatched")
@@ -48,5 +52,16 @@ data class NotificationItem(
     @ColumnInfo(name = "source")
     val source: String,
     @ColumnInfo(name = "contentTitle")
-    val contentTitle: String
+    val contentTitle: String,
+)
+
+@Entity("SourceOrder")
+data class SourceOrder(
+    @PrimaryKey
+    @ColumnInfo(name = "source")
+    val source: String,
+    @ColumnInfo(name = "name")
+    val name: String,
+    @ColumnInfo(name = "order")
+    val order: Int,
 )

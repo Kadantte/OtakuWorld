@@ -1,0 +1,49 @@
+name: Android Push Workflow
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+    inputs:
+      build_animeworld:
+        description: 'Build AnimeWorld?'
+        required: true
+        default: 'true'
+      build_animeworldtv:
+        description: 'Build AnimeWorldTV?'
+        required: true
+        default: 'true'
+      build_mangaworld:
+        description: 'Build MangaWorld?'
+        required: true
+        default: 'true'
+      build_novelworld:
+        description: 'Build NovelWorld?'
+        required: true
+        default: 'true'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mangaworld:
+    uses: ./.github/workflows/mangaworld_build.yaml
+    if: github.event.inputs.build_mangaworld == 'true' || github.event_name == 'push'
+    secrets: inherit # pass all secrets
+
+  animeworld:
+    uses: ./.github/workflows/animeworld_build.yaml
+    if: github.event.inputs.build_animeworld == 'true' || github.event_name == 'push'
+    secrets: inherit # pass all secrets
+
+  animeworldtv:
+    uses: ./.github/workflows/animeworldtv_build.yaml
+    if: github.event.inputs.build_animeworldtv == 'true' || github.event_name == 'push'
+    secrets: inherit # pass all secrets
+
+  novelworld:
+    uses: ./.github/workflows/novelworld_build.yaml
+    if: github.event.inputs.build_novelworld == 'true' || github.event_name == 'push'
+    secrets: inherit # pass all secrets

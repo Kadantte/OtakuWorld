@@ -1,0 +1,38 @@
+name: Android Testing CI Workflow
+
+on:
+  #push:
+  #  branches:
+  #    - master
+  #    - develop
+  #  paths-ignore:
+  #    - '.github/**'
+  workflow_dispatch:
+    inputs:
+      build_animeworld:
+        description: 'Build AnimeWorld?'
+        required: false
+        default: 'true'
+      build_animeworldtv:
+        description: 'Build AnimeWorldTV?'
+        required: false
+        default: 'true'
+      build_mangaworld:
+        description: 'Build MangaWorld?'
+        required: false
+        default: 'true'
+      build_novelworld:
+        description: 'Build NovelWorld?'
+        required: false
+        default: 'true'
+
+jobs:
+  test:
+    name: TestOne
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get tag name
+        id: get_tag_name
+        run: |
+          set -x
+          echo "NIGHTLY_TIME=$(date)" >> $GITHUB_ENV
